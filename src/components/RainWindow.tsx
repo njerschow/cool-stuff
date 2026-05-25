@@ -2,6 +2,11 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import raindropDemoBgUrl from "../assets/raindrop-demo-bg.jpg";
 import raindropTextureUrl from "../assets/raindrop.png";
+import {
+  RAIN_VISIBILITY_RANGE,
+  RAIN_VISIBILITY_SLIDER,
+  RAIN_VISIBILITY_SNAPSHOT_OVERLAY,
+} from "../rainVisibility";
 import { RaindropPaneSimulation } from "../simulation/RaindropPaneSimulation";
 
 export type BackgroundMode = "demo" | "street";
@@ -185,6 +190,10 @@ uniform sampler2D uFrost;
 uniform sampler2D uMistBackground;
 uniform sampler2D uMistTex;
 uniform float uRainVisibility;
+uniform float uRainVisibilityMin;
+uniform float uRainVisibilityRange;
+uniform float uRainOverlayOpacityBase;
+uniform float uRainOverlayOpacityScale;
 varying vec2 vUv;
 
 void main() {
@@ -214,10 +223,9 @@ void main() {
   dropColor += vec3((lambert - 0.68) * 0.055);
   dropColor += vec3(specular) * vec3(0.0);
   vec3 rainColor = mix(baseColor, dropColor, dropMask);
-  float normalizedVisibility = clamp((uRainVisibility - 0.35) / 2.05, 0.0, 1.0);
-  float overlayOpacity = 0.72 + normalizedVisibility * 0.22;
-  float paneOpacity = overlayOpacity * mix(1.0, 0.82, mask);
-  vec3 color = mix(sceneColor, rainColor, paneOpacity);
+  float normalizedVisibility = clamp((uRainVisibility - uRainVisibilityMin) / uRainVisibilityRange, 0.0, 1.0);
+  float overlayOpacity = uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale;
+  vec3 color = mix(sceneColor, rainColor, overlayOpacity);
   color *= 0.965;
 
   gl_FragColor = vec4(color.rgb, 1.0);
@@ -601,7 +609,15 @@ export function RainWindow({
         uMistBackground: { value: mistBackgroundTargetA.texture },
         uMistTex: { value: mistTarget.texture },
         uRainMap: { value: raindropTarget.texture },
+        uRainOverlayOpacityBase: {
+          value: RAIN_VISIBILITY_SNAPSHOT_OVERLAY.base,
+        },
+        uRainOverlayOpacityScale: {
+          value: RAIN_VISIBILITY_SNAPSHOT_OVERLAY.scale,
+        },
         uRainVisibility: { value: rainVisibilityRef.current },
+        uRainVisibilityMin: { value: RAIN_VISIBILITY_SLIDER.min },
+        uRainVisibilityRange: { value: RAIN_VISIBILITY_RANGE },
         uScene: { value: target.texture },
       },
       vertexShader: glassVertexShader,

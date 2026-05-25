@@ -1,4 +1,10 @@
 import { type CSSProperties, useEffect, useRef } from "react";
+import {
+  getBlendRainDropOpacity,
+  getBlendRainOverlayOpacity,
+  getSnapshotRainOverlayOpacity,
+  RAIN_VISIBILITY_SLIDER,
+} from "../rainVisibility";
 
 type RaindropFxInstance = {
   destroy?: () => void;
@@ -98,7 +104,7 @@ export function OriginalRaindropOverlay({
   effectScale = 1,
   sourceSelector,
   variant = "blend",
-  visibility = 1.45,
+  visibility = RAIN_VISIBILITY_SLIDER.defaultValue,
 }: {
   canvasId?: string;
   captureIntervalMs?: number;
@@ -107,19 +113,15 @@ export function OriginalRaindropOverlay({
   variant?: "blend" | "snapshot";
   visibility?: number;
 }) {
-  const normalizedVisibility = Math.min(
-    1,
-    Math.max(0, (visibility - 0.35) / 2.05)
-  );
   const style = {
     "--rain-overlay-opacity":
       variant === "snapshot"
-        ? String(0.72 + normalizedVisibility * 0.28)
-        : String(0.42 + normalizedVisibility * 0.22),
+        ? String(getSnapshotRainOverlayOpacity(visibility))
+        : String(getBlendRainOverlayOpacity(visibility)),
     "--rain-drop-opacity":
       variant === "snapshot"
         ? "1"
-        : String(0.48 + normalizedVisibility * 0.32),
+        : String(getBlendRainDropOpacity(visibility)),
   } as CSSProperties;
 
   return (

@@ -19,6 +19,7 @@ import {
   OriginalRaindropOverlay,
   RealtimeGlareOverlay,
 } from "./components/OriginalRaindropDemo";
+import { RAIN_VISIBILITY_SLIDER } from "./rainVisibility";
 
 const projects = [
   { number: "01", name: "Rain Window", tone: "rain study" },
@@ -41,7 +42,9 @@ export default function App() {
     useState<BackgroundMode>(initialBackgroundMode);
   const [paused, setPaused] = useState(false);
   const [quality, setQuality] = useState<RenderQuality>("balanced");
-  const [rainVisibility, setRainVisibility] = useState(1.45);
+  const [rainVisibility, setRainVisibility] = useState<number>(
+    RAIN_VISIBILITY_SLIDER.defaultValue
+  );
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>("dusk");
   const showComparison = initialCompareMode && backgroundMode === "street";
 
@@ -166,10 +169,10 @@ export default function App() {
           <CloudRain size={18} aria-hidden="true" />
           <input
             aria-label="Rain visibility"
-            max="2.4"
-            min="0.35"
+            max={RAIN_VISIBILITY_SLIDER.max}
+            min={RAIN_VISIBILITY_SLIDER.min}
             onChange={(event) => setRainVisibility(Number(event.target.value))}
-            step="0.05"
+            step={RAIN_VISIBILITY_SLIDER.step}
             type="range"
             value={rainVisibility}
           />
