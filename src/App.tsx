@@ -43,7 +43,7 @@ export default function App() {
   const [rainVisibility, setRainVisibility] = useState<number>(
     RAIN_VISIBILITY_SLIDER.defaultValue
   );
-  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>("dusk");
+  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>("morning");
   const showComparison = initialCompareMode && backgroundMode === "street";
 
   return (
