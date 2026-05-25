@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "eval:native-rain": "node --test scripts/evals/native-rain-crispness.test.mjs",
     "eval:rain-visibility": "node --test scripts/evals/rain-visibility-parity.test.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0"

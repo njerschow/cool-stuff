@@ -191,10 +191,10 @@ void main() {
     raindrop.rgb + dropletMap.rgb - vec3(2.0) * raindrop.rgb * dropletMap.rgb,
     max(dropletMap.a, raindrop.a)
   );
-  float mask = smoothstep(0.95, 0.99, compose.a);
-  float splotchMask = smoothstep(0.74, 0.96, compose.a) * (1.0 - mask);
-  float splotchEdge = smoothstep(0.7, 0.86, compose.a) * (1.0 - smoothstep(0.88, 0.99, compose.a));
-  float dropMask = clamp(mask * 0.88 + splotchMask * 0.18, 0.0, 0.94);
+  float mask = smoothstep(0.96, 0.99, compose.a);
+  float splotchMask = smoothstep(0.78, 0.97, compose.a) * (1.0 - mask);
+  float splotchEdge = smoothstep(0.72, 0.88, compose.a) * (1.0 - smoothstep(0.9, 0.99, compose.a));
+  float dropMask = clamp(mask + splotchMask * 0.075, 0.0, 1.0);
   vec2 refractUv = uv - (compose.xy - vec2(0.5)) * (compose.b * 0.6 + 0.4);
   vec3 normal = normalize(vec3((compose.xy - vec2(0.5)) * vec2(2.0), 1.0));
   vec3 lightDir = vec3(-1.0, 1.0, 2.0);
@@ -208,9 +208,9 @@ void main() {
   vec3 mistBackground = deepenPaneBase(texture2D(uMistBackground, uv).rgb) + vec3(0.0015, 0.002, 0.0025);
   float mistAlpha = clamp(texture2D(uMistTex, uv).r * 0.16, 0.0, 0.32);
   vec3 baseColor = mix(background, mistBackground, mistAlpha);
-  vec3 dropColor = texture2D(uFrost, refractUv).rgb;
-  dropColor += vec3((lambert - 0.72) * 0.085);
-  dropColor *= 1.0 - splotchMask * 0.34 - splotchEdge * 0.18;
+  vec3 dropColor = deepenPaneBase(texture2D(uFrost, refractUv).rgb);
+  dropColor += vec3((lambert - 0.8) * 0.16);
+  dropColor *= 1.0 - splotchMask * 0.28 - splotchEdge * 0.12;
   dropColor += vec3(specular) * (mask * 0.08);
   vec3 rainColor = mix(baseColor, dropColor, dropMask);
   float normalizedVisibility = clamp((uRainVisibility - uRainVisibilityMin) / uRainVisibilityRange, 0.0, 1.0);
@@ -733,9 +733,9 @@ export function RainWindow({
     dropCamera.position.z = 1;
     const raindropTexture = new THREE.TextureLoader().load(raindropTextureUrl);
     raindropTexture.colorSpace = THREE.NoColorSpace;
-    raindropTexture.generateMipmaps = true;
+    raindropTexture.generateMipmaps = false;
     raindropTexture.magFilter = THREE.LinearFilter;
-    raindropTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    raindropTexture.minFilter = THREE.LinearFilter;
     const maxDropInstances = 3000;
     const maxMicrodropInstances = 80;
     const dropGeometry = new THREE.PlaneGeometry(1, 1);
