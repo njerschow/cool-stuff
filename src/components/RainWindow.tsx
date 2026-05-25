@@ -179,6 +179,10 @@ uniform float uRainOverlayOpacityBase;
 uniform float uRainOverlayOpacityScale;
 varying vec2 vUv;
 
+vec3 deepenPaneBase(vec3 color) {
+  return pow(max(color - vec3(0.03, 0.033, 0.038), vec3(0.0)), vec3(1.065));
+}
+
 void main() {
   vec2 uv = vUv;
   vec4 raindrop = texture2D(uRainMap, uv);
@@ -188,8 +192,9 @@ void main() {
     max(dropletMap.a, raindrop.a)
   );
   float mask = smoothstep(0.95, 0.99, compose.a);
-  float splotchMask = smoothstep(0.78, 0.97, compose.a) * (1.0 - mask);
-  float dropMask = clamp(mask * 0.78 + splotchMask * 0.18, 0.0, 0.88);
+  float splotchMask = smoothstep(0.74, 0.96, compose.a) * (1.0 - mask);
+  float splotchEdge = smoothstep(0.7, 0.86, compose.a) * (1.0 - smoothstep(0.88, 0.99, compose.a));
+  float dropMask = clamp(mask * 0.88 + splotchMask * 0.18, 0.0, 0.94);
   vec2 refractUv = uv - (compose.xy - vec2(0.5)) * (compose.b * 0.6 + 0.4);
   vec3 normal = normalize(vec3((compose.xy - vec2(0.5)) * vec2(2.0), 1.0));
   vec3 lightDir = vec3(-1.0, 1.0, 2.0);
@@ -198,20 +203,19 @@ void main() {
   float lambert = clamp(dot(normalize(lightDir), normal), 0.0, 1.0);
   float specular = pow(max(dot(normal, halfDir), 0.0), 256.0);
 
-  vec3 sceneColor = texture2D(uScene, uv).rgb;
-  vec3 background = texture2D(uFrost, uv).rgb;
-  vec3 mistBackground = texture2D(uMistBackground, uv).rgb + vec3(0.012, 0.016, 0.02);
-  float mistAlpha = clamp(texture2D(uMistTex, uv).r * 0.3, 0.0, 0.58);
+  vec3 sceneColor = deepenPaneBase(texture2D(uScene, uv).rgb);
+  vec3 background = deepenPaneBase(texture2D(uFrost, uv).rgb);
+  vec3 mistBackground = deepenPaneBase(texture2D(uMistBackground, uv).rgb) + vec3(0.0015, 0.002, 0.0025);
+  float mistAlpha = clamp(texture2D(uMistTex, uv).r * 0.16, 0.0, 0.32);
   vec3 baseColor = mix(background, mistBackground, mistAlpha);
   vec3 dropColor = texture2D(uFrost, refractUv).rgb;
-  dropColor += vec3((lambert - 0.66) * 0.07);
-  dropColor *= 1.0 - splotchMask * 0.13;
-  dropColor += vec3(specular) * (mask * 0.12 + splotchMask * 0.035);
+  dropColor += vec3((lambert - 0.72) * 0.085);
+  dropColor *= 1.0 - splotchMask * 0.34 - splotchEdge * 0.18;
+  dropColor += vec3(specular) * (mask * 0.08);
   vec3 rainColor = mix(baseColor, dropColor, dropMask);
   float normalizedVisibility = clamp((uRainVisibility - uRainVisibilityMin) / uRainVisibilityRange, 0.0, 1.0);
   float overlayOpacity = uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale;
   vec3 color = mix(sceneColor, rainColor, overlayOpacity);
-  color *= 0.94;
 
   gl_FragColor = vec4(color.rgb, 1.0);
   #include <colorspace_fragment>
