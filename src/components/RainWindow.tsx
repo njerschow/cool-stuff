@@ -206,18 +206,20 @@ void main() {
 
   vec3 sceneColor = texture2D(uScene, uv).rgb;
   vec3 background = texture2D(uFrost, uv).rgb;
-  vec3 mistBackground = texture2D(uMistBackground, uv).rgb + vec3(0.01);
-  float mistAlpha = clamp(texture2D(uMistTex, uv).r, 0.0, 1.0);
+  vec3 mistBackground = texture2D(uMistBackground, uv).rgb + vec3(0.012, 0.016, 0.02);
+  float mistAlpha = clamp(texture2D(uMistTex, uv).r * 0.34, 0.0, 0.64);
   vec3 baseColor = mix(background, mistBackground, mistAlpha);
   vec3 dropColor = texture2D(uFrost, refractUv).rgb;
-  dropColor += vec3((lambert - 0.8) * 0.2);
+  dropColor += vec3((lambert - 0.7) * 0.08);
   dropColor += vec3(specular) * vec3(0.0);
   vec3 rainColor = mix(baseColor, dropColor, mask);
   float normalizedVisibility = clamp((uRainVisibility - 0.35) / 2.05, 0.0, 1.0);
-  float overlayOpacity = 0.72 + normalizedVisibility * 0.28;
+  float overlayOpacity = 0.72 + normalizedVisibility * 0.22;
   vec3 color = mix(sceneColor, rainColor, overlayOpacity);
+  color *= 0.965;
 
   gl_FragColor = vec4(color.rgb, 1.0);
+  #include <colorspace_fragment>
 }
 `;
 
@@ -460,7 +462,7 @@ export function RainWindow({
       samples: quality === "cinematic" ? 2 : 0,
       stencilBuffer: false,
     });
-    target.texture.colorSpace = THREE.SRGBColorSpace;
+    target.texture.colorSpace = THREE.NoColorSpace;
 
     const glareTargetA = new THREE.WebGLRenderTarget(1, 1, {
       depthBuffer: false,
@@ -572,6 +574,7 @@ export function RainWindow({
       depthTest: false,
       depthWrite: false,
       fragmentShader: demoBackgroundFragmentShader,
+      toneMapped: false,
       uniforms: {
         uImage: { value: demoTexture },
         uImageAspect: { value: 2160 / 998 },
@@ -589,6 +592,7 @@ export function RainWindow({
       depthTest: false,
       depthWrite: false,
       fragmentShader: glassFragmentShader,
+      toneMapped: false,
       uniforms: {
         uDropletMap: { value: dropletTarget.texture },
         uFrost: { value: frostTargetA.texture },
@@ -607,6 +611,7 @@ export function RainWindow({
       depthTest: false,
       depthWrite: false,
       fragmentShader: copyFragmentShader,
+      toneMapped: false,
       uniforms: {
         uImage: { value: target.texture },
       },
@@ -616,6 +621,7 @@ export function RainWindow({
       depthTest: false,
       depthWrite: false,
       fragmentShader: pyramidBlurFragmentShader,
+      toneMapped: false,
       uniforms: {
         uMainTex: { value: target.texture },
         uSampleOffset: { value: 1 },
@@ -628,6 +634,7 @@ export function RainWindow({
       depthTest: false,
       depthWrite: false,
       fragmentShader: glareExtractFragmentShader,
+      toneMapped: false,
       uniforms: {
         uScene: { value: target.texture },
       },
@@ -637,6 +644,7 @@ export function RainWindow({
       depthTest: false,
       depthWrite: false,
       fragmentShader: glareBlurFragmentShader,
+      toneMapped: false,
       uniforms: {
         uDirection: { value: new THREE.Vector2(1, 0) },
         uImage: { value: glareTargetA.texture },
@@ -649,6 +657,7 @@ export function RainWindow({
       depthTest: false,
       depthWrite: false,
       fragmentShader: glareBlurFragmentShader,
+      toneMapped: false,
       uniforms: {
         uDirection: { value: new THREE.Vector2(1, 0) },
         uImage: { value: target.texture },
@@ -673,6 +682,7 @@ export function RainWindow({
       depthTest: false,
       depthWrite: false,
       fragmentShader: mistAddFragmentShader,
+      toneMapped: false,
       transparent: true,
       uniforms: {
         uAmount: { value: 0 },
@@ -690,6 +700,7 @@ export function RainWindow({
       depthTest: false,
       depthWrite: false,
       fragmentShader: mistEraseFragmentShader,
+      toneMapped: false,
       transparent: true,
       uniforms: {
         uEraserSmooth: { value: new THREE.Vector2(0.93, 1) },
@@ -737,6 +748,7 @@ export function RainWindow({
       depthTest: false,
       depthWrite: false,
       fragmentShader: raindropMapFragmentShader,
+      toneMapped: false,
       transparent: true,
       uniforms: {
         uMainTex: { value: raindropTexture },
@@ -763,6 +775,7 @@ export function RainWindow({
       depthTest: false,
       depthWrite: false,
       fragmentShader: microdropletMapFragmentShader,
+      toneMapped: false,
       transparent: true,
       uniforms: {
         uMainTex: { value: raindropTexture },
