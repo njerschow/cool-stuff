@@ -1,12 +1,10 @@
-import {
-  CloudRain,
-  Gauge,
-  Image as ImageIcon,
-  Pause,
-  Play,
-  Sparkles,
-  SunMoon,
-} from "lucide-react";
+import CloudRain from "lucide-react/dist/esm/icons/cloud-rain.js";
+import Gauge from "lucide-react/dist/esm/icons/gauge.js";
+import ImageIcon from "lucide-react/dist/esm/icons/image.js";
+import Pause from "lucide-react/dist/esm/icons/pause.js";
+import Play from "lucide-react/dist/esm/icons/play.js";
+import Sparkles from "lucide-react/dist/esm/icons/sparkles.js";
+import SunMoon from "lucide-react/dist/esm/icons/sun-moon.js";
 import { useState } from "react";
 import {
   type BackgroundMode,
