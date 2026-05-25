@@ -196,6 +196,7 @@ void main() {
     max(dropletMap.a, raindrop.a)
   );
   float mask = smoothstep(0.96, 0.99, compose.a);
+  float dropMask = mask * 0.74;
   vec2 refractUv = uv - (compose.xy - vec2(0.5)) * (compose.b * 0.6 + 0.4);
   vec3 normal = normalize(vec3((compose.xy - vec2(0.5)) * vec2(2.0), 1.0));
   vec3 lightDir = vec3(-1.0, 1.0, 2.0);
@@ -207,15 +208,16 @@ void main() {
   vec3 sceneColor = texture2D(uScene, uv).rgb;
   vec3 background = texture2D(uFrost, uv).rgb;
   vec3 mistBackground = texture2D(uMistBackground, uv).rgb + vec3(0.012, 0.016, 0.02);
-  float mistAlpha = clamp(texture2D(uMistTex, uv).r * 0.34, 0.0, 0.64);
+  float mistAlpha = clamp(texture2D(uMistTex, uv).r * 0.3, 0.0, 0.58);
   vec3 baseColor = mix(background, mistBackground, mistAlpha);
   vec3 dropColor = texture2D(uFrost, refractUv).rgb;
-  dropColor += vec3((lambert - 0.7) * 0.08);
+  dropColor += vec3((lambert - 0.68) * 0.055);
   dropColor += vec3(specular) * vec3(0.0);
-  vec3 rainColor = mix(baseColor, dropColor, mask);
+  vec3 rainColor = mix(baseColor, dropColor, dropMask);
   float normalizedVisibility = clamp((uRainVisibility - 0.35) / 2.05, 0.0, 1.0);
   float overlayOpacity = 0.72 + normalizedVisibility * 0.22;
-  vec3 color = mix(sceneColor, rainColor, overlayOpacity);
+  float paneOpacity = overlayOpacity * mix(1.0, 0.82, mask);
+  vec3 color = mix(sceneColor, rainColor, paneOpacity);
   color *= 0.965;
 
   gl_FragColor = vec4(color.rgb, 1.0);
