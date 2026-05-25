@@ -22,26 +22,11 @@ type Car = {
   wobble: number;
 };
 
-type Splash = {
-  age: number;
-  life: number;
-  seed: number;
-  x: number;
-  z: number;
-};
-
-type SplashField = {
-  colors: THREE.InstancedBufferAttribute;
-  mesh: THREE.InstancedMesh;
-  splashes: Splash[];
-};
-
 const qualitySettings = {
   balanced: {
     pixelRatio: 1.1,
     raindropMapScale: 2.14,
     spawnLimit: 2000,
-    splashCount: 74,
     visualDropScale: 1,
     windowBudget: 420,
   },
@@ -49,7 +34,6 @@ const qualitySettings = {
     pixelRatio: 1.45,
     raindropMapScale: 1.62,
     spawnLimit: 2000,
-    splashCount: 118,
     visualDropScale: 1,
     windowBudget: 640,
   },
@@ -59,7 +43,6 @@ const qualitySettings = {
     pixelRatio: number;
     raindropMapScale: number;
     spawnLimit: number;
-    splashCount: number;
     visualDropScale: number;
     windowBudget: number;
   }
@@ -822,21 +805,17 @@ export function RainWindow({
     const cars: Car[] = [];
     const dynamicDisposables: Array<THREE.Object3D | THREE.Material | THREE.BufferGeometry> = [];
 
-    const splashField =
-      backgroundMode === "street"
-        ? withSeededRandom(
-            `street-world-${timeOfDay}-${quality}`,
-            () =>
-              populateWorld(
-                worldScene,
-                cars,
-                profile,
-                settings.windowBudget,
-                settings.splashCount,
-                dynamicDisposables
-              )
-          )
-        : undefined;
+    if (backgroundMode === "street") {
+      withSeededRandom(`street-world-${timeOfDay}-${quality}`, () =>
+        populateWorld(
+          worldScene,
+          cars,
+          profile,
+          settings.windowBudget,
+          dynamicDisposables
+        )
+      );
+    }
 
     const clock = new THREE.Clock();
     let animationId = 0;
@@ -1032,9 +1011,6 @@ export function RainWindow({
         renderer.render(demoBackgroundScene, screenCamera);
       } else {
         updateCars(cars, sceneTime);
-        if (splashField) {
-          updateSplashes(splashField, delta);
-        }
         camera.position.x = -4.45 + Math.sin(sceneTime * 0.33) * 0.065;
         camera.position.y = 2.55 + Math.sin(sceneTime * 0.21) * 0.025;
         camera.lookAt(
@@ -1148,9 +1124,8 @@ function populateWorld(
   cars: Car[],
   profile: TimeProfile,
   windowBudget: number,
-  splashCount: number,
   disposables: Array<THREE.Object3D | THREE.Material | THREE.BufferGeometry>
-): SplashField {
+) {
   const hemi = new THREE.HemisphereLight(
     profile.hemiSky,
     profile.hemiGround,
@@ -1206,8 +1181,6 @@ function populateWorld(
     );
   }
 
-  const splashField = createSplashField(splashCount, scene, disposables);
-
   const sillMaterial = new THREE.MeshStandardMaterial({
     color: 0x060504,
     metalness: 0.1,
@@ -1218,7 +1191,6 @@ function populateWorld(
   scene.add(sill);
   disposables.push(sill.geometry, sillMaterial);
 
-  return splashField;
 }
 
 function createRoadDetails(
@@ -1233,21 +1205,8 @@ function createRoadDetails(
     toneMapped: false,
     transparent: true,
   });
-  const reflectionMats = [0x57d8d1, 0xff7d66, 0xf2bf5f, 0x75aaff].map(
-    (color) =>
-      new THREE.MeshBasicMaterial({
-        blending: THREE.AdditiveBlending,
-        color,
-        depthWrite: false,
-        opacity: 0.2,
-        side: THREE.DoubleSide,
-        toneMapped: false,
-        transparent: true,
-      })
-  );
   const dashGeo = new THREE.PlaneGeometry(0.12, 2.6);
-  const glowGeo = new THREE.PlaneGeometry(2.5, 4.8);
-  disposables.push(stripeMat, dashGeo, glowGeo, ...reflectionMats);
+  disposables.push(stripeMat, dashGeo);
 
   for (let index = 0; index < 22; index += 1) {
     const dash = new THREE.Mesh(dashGeo, stripeMat);
@@ -1256,19 +1215,6 @@ function createRoadDetails(
     scene.add(dash);
   }
 
-  for (let index = 0; index < 18; index += 1) {
-    const mat = reflectionMats[index % reflectionMats.length];
-    const glow = new THREE.Mesh(glowGeo, mat);
-    glow.rotation.x = -Math.PI / 2;
-    glow.rotation.z = (Math.random() - 0.5) * 0.18;
-    glow.position.set(
-      (index % 2 === 0 ? -1 : 1) * (1.1 + Math.random() * 2.8),
-      0.034,
-      2.5 - index * 3.8
-    );
-    glow.scale.set(0.8 + Math.random() * 1.4, 0.45 + Math.random() * 0.8, 1);
-    scene.add(glow);
-  }
 }
 
 function createBuildings(
@@ -1479,14 +1425,6 @@ function createCar(
   });
   const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff0b5, toneMapped: false });
   const tailMat = new THREE.MeshBasicMaterial({ color: 0xff3347, toneMapped: false });
-  const reflectionMat = new THREE.MeshBasicMaterial({
-    blending: THREE.AdditiveBlending,
-    color: 0xffba6c,
-    depthWrite: false,
-    opacity: 0.4,
-    side: THREE.DoubleSide,
-    transparent: true,
-  });
 
   const body = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.42, 0.9), bodyMat);
   body.position.y = 0.38;
@@ -1505,11 +1443,6 @@ function createCar(
     tail.position.set(config.direction * -1.08, 0.42, z);
     group.add(tail);
   }
-
-  const wash = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 1.2), reflectionMat);
-  wash.rotation.x = -Math.PI / 2;
-  wash.position.set(config.direction * -0.35, 0.018, 0);
-  group.add(wash);
 
   const headLight = new THREE.PointLight(0xffe0aa, 4.5, 5.8, 2.0);
   headLight.position.set(config.direction * 1.2, 0.48, 0);
@@ -1533,92 +1466,6 @@ function createCar(
     offset: config.offset,
     wobble: config.wobble,
   };
-}
-
-function createSplashField(
-  count: number,
-  scene: THREE.Scene,
-  disposables: Array<THREE.Object3D | THREE.Material | THREE.BufferGeometry>
-): SplashField {
-  const geometry = new THREE.RingGeometry(0.82, 1, 28);
-  const material = new THREE.MeshBasicMaterial({
-    blending: THREE.AdditiveBlending,
-    color: 0x9fc7d3,
-    depthWrite: false,
-    opacity: 0.72,
-    side: THREE.DoubleSide,
-    transparent: true,
-    vertexColors: true,
-  });
-  const mesh = new THREE.InstancedMesh(geometry, material, count);
-  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  mesh.frustumCulled = false;
-
-  const colors = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3);
-  mesh.instanceColor = colors;
-
-  const splashes: Splash[] = [];
-  for (let index = 0; index < count; index += 1) {
-    splashes.push(createSplash(true));
-  }
-
-  scene.add(mesh);
-  disposables.push(geometry, material, mesh);
-
-  const field = { colors, mesh, splashes };
-  updateSplashes(field, 0);
-  return field;
-}
-
-function createSplash(spreadAges = false): Splash {
-  const life = 0.72 + Math.random() * 0.52;
-  return {
-    age: spreadAges ? Math.random() * life : 0,
-    life,
-    seed: Math.random(),
-    x: -6.4 + Math.random() * 12.8,
-    z: 5 - Math.random() * 66,
-  };
-}
-
-function resetSplash(splash: Splash) {
-  const next = createSplash();
-  splash.age = next.age;
-  splash.life = next.life;
-  splash.seed = next.seed;
-  splash.x = next.x;
-  splash.z = next.z;
-}
-
-function updateSplashes(field: SplashField, delta: number) {
-  const matrix = new THREE.Matrix4();
-  const quat = new THREE.Quaternion().setFromEuler(
-    new THREE.Euler(-Math.PI / 2, 0, 0)
-  );
-  const scale = new THREE.Vector3();
-  const color = new THREE.Color();
-
-  for (let index = 0; index < field.splashes.length; index += 1) {
-    const splash = field.splashes[index];
-    splash.age += delta * (0.9 + splash.seed * 0.6);
-    if (splash.age > splash.life) {
-      resetSplash(splash);
-    }
-
-    const progress = splash.age / splash.life;
-    const radius = 0.075 + progress * (0.66 + splash.seed * 0.44);
-    const brightness = Math.pow(1 - progress, 2.15) * (0.55 + splash.seed * 0.58);
-    const oval = 0.45 + splash.seed * 0.28;
-
-    scale.set(radius, radius * oval, radius);
-    matrix.compose(new THREE.Vector3(splash.x, 0.033, splash.z), quat, scale);
-    field.mesh.setMatrixAt(index, matrix);
-    color.setRGB(brightness * 0.72, brightness * 0.92, brightness);
-    field.colors.setXYZ(index, color.r, color.g, color.b);
-  }
-
-  field.mesh.instanceMatrix.needsUpdate = true;
-  field.colors.needsUpdate = true;
 }
 
 function updateCars(cars: Car[], time: number) {
