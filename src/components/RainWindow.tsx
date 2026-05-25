@@ -204,8 +204,9 @@ void main() {
     raindrop.rgb + dropletMap.rgb - vec3(2.0) * raindrop.rgb * dropletMap.rgb,
     max(dropletMap.a, raindrop.a)
   );
-  float mask = smoothstep(0.96, 0.99, compose.a);
-  float dropMask = mask * 0.74;
+  float mask = smoothstep(0.95, 0.99, compose.a);
+  float splotchMask = smoothstep(0.78, 0.97, compose.a) * (1.0 - mask);
+  float dropMask = clamp(mask * 0.78 + splotchMask * 0.18, 0.0, 0.88);
   vec2 refractUv = uv - (compose.xy - vec2(0.5)) * (compose.b * 0.6 + 0.4);
   vec3 normal = normalize(vec3((compose.xy - vec2(0.5)) * vec2(2.0), 1.0));
   vec3 lightDir = vec3(-1.0, 1.0, 2.0);
@@ -220,13 +221,14 @@ void main() {
   float mistAlpha = clamp(texture2D(uMistTex, uv).r * 0.3, 0.0, 0.58);
   vec3 baseColor = mix(background, mistBackground, mistAlpha);
   vec3 dropColor = texture2D(uFrost, refractUv).rgb;
-  dropColor += vec3((lambert - 0.68) * 0.055);
-  dropColor += vec3(specular) * vec3(0.0);
+  dropColor += vec3((lambert - 0.66) * 0.07);
+  dropColor *= 1.0 - splotchMask * 0.13;
+  dropColor += vec3(specular) * (mask * 0.12 + splotchMask * 0.035);
   vec3 rainColor = mix(baseColor, dropColor, dropMask);
   float normalizedVisibility = clamp((uRainVisibility - uRainVisibilityMin) / uRainVisibilityRange, 0.0, 1.0);
   float overlayOpacity = uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale;
   vec3 color = mix(sceneColor, rainColor, overlayOpacity);
-  color *= 0.965;
+  color *= 0.94;
 
   gl_FragColor = vec4(color.rgb, 1.0);
   #include <colorspace_fragment>
@@ -730,7 +732,14 @@ export function RainWindow({
     mistScene.add(mistQuad);
 
     const paneSimulation = new RaindropPaneSimulation({
+      initialFillRatio: 0.1,
+      initialSpread: 0.34,
       spawnLimit: settings.spawnLimit,
+      spawnSize: [34, 76],
+      trailDistance: [18, 28],
+      trailDropDensity: 0.28,
+      trailDropSize: [0.18, 0.36],
+      velocitySpread: 0.22,
     });
     const dropScene = new THREE.Scene();
     const dropCamera = new THREE.OrthographicCamera(0, 1, 0, 1, -1, 1);
@@ -741,7 +750,7 @@ export function RainWindow({
     raindropTexture.magFilter = THREE.LinearFilter;
     raindropTexture.minFilter = THREE.LinearMipmapLinearFilter;
     const maxDropInstances = 3000;
-    const maxMicrodropInstances = 64;
+    const maxMicrodropInstances = 80;
     const dropGeometry = new THREE.PlaneGeometry(1, 1);
     const instanceSize = new THREE.InstancedBufferAttribute(
       new Float32Array(maxDropInstances),
@@ -919,11 +928,11 @@ export function RainWindow({
         return 0;
       }
 
-      const count = Math.min(maxMicrodropInstances, Math.floor(500 * rainDelta));
+      const count = Math.min(maxMicrodropInstances, Math.floor(620 * rainDelta));
       microdropMesh.count = count;
 
       for (let index = 0; index < count; index += 1) {
-        const size = 10 + Math.random() * 20;
+        const size = 7 + Math.random() * 15;
         dropPosition.set(
           Math.random() * Math.max(1, raindropTarget.width),
           Math.random() * rainMapHeight,
