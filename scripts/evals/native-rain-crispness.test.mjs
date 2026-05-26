@@ -43,6 +43,27 @@ test("native raindrops render slightly larger water lenses", async () => {
   const source = await rainWindowSource();
 
   assert.match(source, /spawnSize: \[39, 86\],/);
-  assert.match(source, /trailDropSize: \[0\.2, 0\.39\],/);
   assert.match(source, /const size = 8 \+ Math\.random\(\) \* 17;/);
+});
+
+test("falling drops keep visible wet residue trails", async () => {
+  const source = await rainWindowSource();
+
+  assert.match(source, /float trailVeil = smoothstep\(0\.56, 0\.9, compose\.a\)/);
+  assert.match(source, /trailDistance: \[13, 22\],/);
+  assert.match(source, /trailDropDensity: 0\.34,/);
+  assert.match(source, /trailDropSize: \[0\.18, 0\.34\],/);
+  assert.match(source, /trailSpread: 0\.78,/);
+  assert.match(source, /mistAddMaterial\.uniforms\.uAmount\.value = rainDelta \/ 7\.5;/);
+});
+
+test("native glass mixes realtime background glare into the pane", async () => {
+  const source = await rainWindowSource();
+
+  assert.match(source, /uniform sampler2D uGlare;/);
+  assert.match(source, /uGlare: \{ value: glareTargetA\.texture \},/);
+  assert.match(source, /const renderGlare = \(\) => \{/);
+  assert.match(source, /renderGlare\(\);\n      copyToGlassTarget\(\);/);
+  assert.match(source, /float brightMask = smoothstep\(0\.28, 0\.98, luma\);/);
+  assert.match(source, /rainColor \+= glare \* \(0\.46 \+ mask \* 0\.28 \+ trailVeil \* 0\.12\);/);
 });

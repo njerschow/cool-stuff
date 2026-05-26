@@ -170,6 +170,7 @@ uniform sampler2D uScene;
 uniform sampler2D uRainMap;
 uniform sampler2D uDropletMap;
 uniform sampler2D uFrost;
+uniform sampler2D uGlare;
 uniform sampler2D uMistBackground;
 uniform sampler2D uMistTex;
 uniform float uRainVisibility;
@@ -194,6 +195,7 @@ void main() {
   float mask = smoothstep(0.96, 0.99, compose.a);
   float splotchMask = smoothstep(0.78, 0.97, compose.a) * (1.0 - mask);
   float splotchEdge = smoothstep(0.72, 0.88, compose.a) * (1.0 - smoothstep(0.9, 0.99, compose.a));
+  float trailVeil = smoothstep(0.56, 0.9, compose.a) * (1.0 - smoothstep(0.94, 0.99, compose.a));
   float dropMask = clamp(mask + splotchMask * 0.075, 0.0, 1.0);
   vec2 refractUv = uv - (compose.xy - vec2(0.5)) * (compose.b * 0.6 + 0.4);
   vec3 normal = normalize(vec3((compose.xy - vec2(0.5)) * vec2(2.0), 1.0));
@@ -203,10 +205,11 @@ void main() {
   float lambert = clamp(dot(normalize(lightDir), normal), 0.0, 1.0);
   float specular = pow(max(dot(normal, halfDir), 0.0), 256.0);
 
-  vec3 sceneColor = deepenPaneBase(texture2D(uScene, uv).rgb);
+  vec3 glare = texture2D(uGlare, uv).rgb;
+  vec3 sceneColor = deepenPaneBase(texture2D(uScene, uv).rgb) + glare * 0.18;
   vec3 background = deepenPaneBase(texture2D(uFrost, uv).rgb);
   vec3 mistBackground = deepenPaneBase(texture2D(uMistBackground, uv).rgb) + vec3(0.0015, 0.002, 0.0025);
-  float mistAlpha = clamp(texture2D(uMistTex, uv).r * 0.16, 0.0, 0.32);
+  float mistAlpha = clamp(texture2D(uMistTex, uv).r * 0.2, 0.0, 0.38);
   vec3 baseColor = mix(background, mistBackground, mistAlpha);
   vec3 dropColor = deepenPaneBase(texture2D(uFrost, refractUv).rgb);
   float lensContrast = 1.32 + mask * 0.28 + splotchMask * 0.16;
@@ -215,9 +218,13 @@ void main() {
   dropColor *= 1.0 - splotchMask * 0.28 - splotchEdge * 0.12;
   dropColor += vec3(specular) * (mask * 0.08);
   vec3 rainColor = mix(baseColor, dropColor, dropMask);
+  vec3 trailColor = mix(baseColor, dropColor, 0.32) * (1.0 - trailVeil * 0.18);
+  rainColor = mix(rainColor, trailColor, trailVeil * 0.28);
+  rainColor += glare * (0.46 + mask * 0.28 + trailVeil * 0.12);
   float normalizedVisibility = clamp((uRainVisibility - uRainVisibilityMin) / uRainVisibilityRange, 0.0, 1.0);
   float overlayOpacity = uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale;
   vec3 color = mix(sceneColor, rainColor, overlayOpacity);
+  color += glare * (0.12 + normalizedVisibility * 0.1);
 
   gl_FragColor = vec4(color.rgb, 1.0);
   #include <colorspace_fragment>
@@ -240,9 +247,9 @@ varying vec2 vUv;
 void main() {
   vec3 color = texture2D(uScene, vUv).rgb;
   float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
-  float brightMask = smoothstep(0.38, 1.12, luma);
-  float veilMask = smoothstep(0.12, 0.48, luma);
-  gl_FragColor = vec4(color * (veilMask * 0.08 + brightMask * 0.72), 1.0);
+  float brightMask = smoothstep(0.28, 0.98, luma);
+  float veilMask = smoothstep(0.1, 0.42, luma);
+  gl_FragColor = vec4(color * (veilMask * 0.12 + brightMask * 1.05), 1.0);
 }
 `;
 
@@ -597,6 +604,7 @@ export function RainWindow({
       uniforms: {
         uDropletMap: { value: dropletTarget.texture },
         uFrost: { value: frostTargetA.texture },
+        uGlare: { value: glareTargetA.texture },
         uMistBackground: { value: mistBackgroundTargetA.texture },
         uMistTex: { value: mistTarget.texture },
         uRainMap: { value: raindropTarget.texture },
@@ -725,9 +733,10 @@ export function RainWindow({
       initialSpread: 0.34,
       spawnLimit: settings.spawnLimit,
       spawnSize: [39, 86],
-      trailDistance: [18, 28],
-      trailDropDensity: 0.28,
-      trailDropSize: [0.2, 0.39],
+      trailDistance: [13, 22],
+      trailDropDensity: 0.34,
+      trailDropSize: [0.18, 0.34],
+      trailSpread: 0.78,
       velocitySpread: 0.22,
     });
     const dropScene = new THREE.Scene();
@@ -949,6 +958,21 @@ export function RainWindow({
       renderPostMaterial(copyMaterial, frostTargetB);
     };
 
+    const renderGlare = () => {
+      glareExtractMaterial.uniforms.uScene.value = target.texture;
+      renderPostMaterial(glareExtractMaterial, glareTargetA);
+
+      glareBlurMaterial.uniforms.uImage.value = glareTargetA.texture;
+      glareBlurMaterial.uniforms.uDirection.value.set(1, 0);
+      glareBlurMaterial.uniforms.uRadius.value = 5.8;
+      renderPostMaterial(glareBlurMaterial, glareTargetB);
+
+      glareBlurMaterial.uniforms.uImage.value = glareTargetB.texture;
+      glareBlurMaterial.uniforms.uDirection.value.set(0, 1);
+      glareBlurMaterial.uniforms.uRadius.value = 7.6;
+      renderPostMaterial(glareBlurMaterial, glareTargetA);
+    };
+
     const renderBlur = (
       sourceTarget: THREE.WebGLRenderTarget,
       steps: number,
@@ -1031,6 +1055,7 @@ export function RainWindow({
         return;
       }
 
+      renderGlare();
       copyToGlassTarget();
       renderBlur(frostTargetB, 3, frostTargetA);
       renderBlur(frostTargetB, 4, mistBackgroundTargetA);
@@ -1046,7 +1071,7 @@ export function RainWindow({
         renderer.render(microdropScene, dropCamera);
       }
       if (rainDelta > 0) {
-        mistAddMaterial.uniforms.uAmount.value = rainDelta / 10;
+        mistAddMaterial.uniforms.uAmount.value = rainDelta / 7.5;
         renderer.setRenderTarget(mistTarget);
         mistQuad.material = mistAddMaterial;
         renderer.render(mistScene, screenCamera);
