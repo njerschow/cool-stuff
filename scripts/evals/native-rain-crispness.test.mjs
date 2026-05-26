@@ -38,3 +38,11 @@ test("raindrop normal texture is not mipmap-softened", async () => {
   assert.match(source, /raindropTexture\.generateMipmaps = false;/);
   assert.match(source, /raindropTexture\.minFilter = THREE\.LinearFilter;/);
 });
+
+test("native raindrops render slightly larger water lenses", async () => {
+  const source = await rainWindowSource();
+
+  assert.match(source, /spawnSize: \[39, 86\],/);
+  assert.match(source, /trailDropSize: \[0\.2, 0\.39\],/);
+  assert.match(source, /const size = 8 \+ Math\.random\(\) \* 17;/);
+});

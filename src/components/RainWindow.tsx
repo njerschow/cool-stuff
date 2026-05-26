@@ -724,10 +724,10 @@ export function RainWindow({
       initialFillRatio: 0.1,
       initialSpread: 0.34,
       spawnLimit: settings.spawnLimit,
-      spawnSize: [34, 76],
+      spawnSize: [39, 86],
       trailDistance: [18, 28],
       trailDropDensity: 0.28,
-      trailDropSize: [0.18, 0.36],
+      trailDropSize: [0.2, 0.39],
       velocitySpread: 0.22,
     });
     const dropScene = new THREE.Scene();
@@ -917,7 +917,7 @@ export function RainWindow({
       microdropMesh.count = count;
 
       for (let index = 0; index < count; index += 1) {
-        const size = 7 + Math.random() * 15;
+        const size = 8 + Math.random() * 17;
         dropPosition.set(
           Math.random() * Math.max(1, raindropTarget.width),
           Math.random() * rainMapHeight,
