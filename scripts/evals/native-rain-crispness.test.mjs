@@ -24,7 +24,12 @@ test("native raindrops use a full-strength drop mask with only faint splotch haz
     source,
     /float dropMask = clamp\(mask \+ splotchMask \* 0\.075, 0\.0, 1\.0\);/
   );
-  assert.match(source, /dropColor \+= vec3\(\(lambert - 0\.8\) \* 0\.16\);/);
+  assert.match(source, /float lensContrast = 1\.32 \+ mask \* 0\.28 \+ splotchMask \* 0\.16;/);
+  assert.match(
+    source,
+    /dropColor = baseColor \+ \(dropColor - baseColor\) \* lensContrast;/
+  );
+  assert.match(source, /dropColor \+= vec3\(\(lambert - 0\.8\) \* 0\.2\);/);
 });
 
 test("raindrop normal texture is not mipmap-softened", async () => {

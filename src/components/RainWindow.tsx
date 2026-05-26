@@ -209,7 +209,9 @@ void main() {
   float mistAlpha = clamp(texture2D(uMistTex, uv).r * 0.16, 0.0, 0.32);
   vec3 baseColor = mix(background, mistBackground, mistAlpha);
   vec3 dropColor = deepenPaneBase(texture2D(uFrost, refractUv).rgb);
-  dropColor += vec3((lambert - 0.8) * 0.16);
+  float lensContrast = 1.32 + mask * 0.28 + splotchMask * 0.16;
+  dropColor = baseColor + (dropColor - baseColor) * lensContrast;
+  dropColor += vec3((lambert - 0.8) * 0.2);
   dropColor *= 1.0 - splotchMask * 0.28 - splotchEdge * 0.12;
   dropColor += vec3(specular) * (mask * 0.08);
   vec3 rainColor = mix(baseColor, dropColor, dropMask);
