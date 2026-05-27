@@ -27,3 +27,14 @@ test("traffic lanes keep stable spacing to avoid overlapping cars", async () => 
   assert.doesNotMatch(source, /speed: 4\.4 \+ Math\.random\(\) \* 2\.8,/);
   assert.match(source, /% CAR_TRACK_LENGTH/);
 });
+
+test("cars use paired headlight light sources for paired road reflections", async () => {
+  const source = await rainWindowSource();
+
+  assert.match(source, /for \(const z of \[-0\.32, 0\.32\]\)/);
+  assert.match(source, /const reflection = new THREE\.Mesh\(new THREE\.CircleGeometry\(1, 24\), reflectionMat\);/);
+  assert.match(source, /reflection\.position\.set\(config\.direction \* 1\.64, 0\.028, z\);/);
+  assert.match(source, /reflection\.scale\.set\(1\.15, 0\.18, 1\);/);
+  assert.doesNotMatch(source, /const headLight = new THREE\.PointLight\(0xffe0aa, 2\.7, 5\.4, 2\.0\);/);
+  assert.doesNotMatch(source, /headLight\.position\.set\(config\.direction \* 1\.2, 0\.48, 0\);/);
+});

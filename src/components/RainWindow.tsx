@@ -1560,6 +1560,15 @@ function createCar(
     roughness: 0.18,
   });
   const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff0b5, toneMapped: false });
+  const reflectionMat = new THREE.MeshBasicMaterial({
+    blending: THREE.AdditiveBlending,
+    color: 0xffe7b0,
+    depthWrite: false,
+    opacity: 0.24,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+    transparent: true,
+  });
   const tailMat = new THREE.MeshBasicMaterial({ color: 0xff3347, toneMapped: false });
 
   const body = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.42, 0.9), bodyMat);
@@ -1575,14 +1584,16 @@ function createCar(
     head.position.set(config.direction * 1.08, 0.42, z);
     group.add(head);
 
+    const reflection = new THREE.Mesh(new THREE.CircleGeometry(1, 24), reflectionMat);
+    reflection.position.set(config.direction * 1.64, 0.028, z);
+    reflection.rotation.x = -Math.PI / 2;
+    reflection.scale.set(1.15, 0.18, 1);
+    group.add(reflection);
+
     const tail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.075, 0.16), tailMat);
     tail.position.set(config.direction * -1.08, 0.42, z);
     group.add(tail);
   }
-
-  const headLight = new THREE.PointLight(0xffe0aa, 4.5, 5.8, 2.0);
-  headLight.position.set(config.direction * 1.2, 0.48, 0);
-  group.add(headLight);
 
   group.rotation.y = config.direction === 1 ? -Math.PI / 2 : Math.PI / 2;
   group.position.set(config.laneX, 0, 0);
