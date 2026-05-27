@@ -49,18 +49,25 @@ test("native raindrops render slightly larger water lenses", async () => {
 test("falling drops keep visible wet residue trails", async () => {
   const source = await rainWindowSource();
 
+  assert.match(source, /const MIST_INITIAL_FILL = 0\.68;/);
+  assert.match(source, /const MIST_ALPHA_SCALE = 0\.34;/);
+  assert.match(source, /const MIST_TRAIL_VEIL = 0\.02;/);
+  assert.match(source, /const MIST_ACCUMULATION_DIVISOR = 10\.5;/);
   assert.match(source, /float trailVeil = smoothstep\(0\.56, 0\.9, compose\.a\)/);
   assert.match(source, /trailDistance: \[13, 22\],/);
   assert.match(source, /trailDropDensity: 0\.34,/);
   assert.match(source, /trailDropSize: \[0\.18, 0\.34\],/);
   assert.match(source, /trailSpread: 0\.78,/);
-  assert.match(source, /float mistAlpha = clamp\(texture2D\(uMistTex, uv\)\.r \* 0\.25 \+ trailVeil \* 0\.08, 0\.0, 0\.46\);/);
+  assert.match(source, /texture2D\(uMistTex, uv\)\.r \* \$\{MIST_ALPHA_SCALE\.toFixed\(2\)\}/);
+  assert.match(source, /trailVeil \* \$\{MIST_TRAIL_VEIL\.toFixed\(2\)\}/);
   assert.match(source, /rainColor = mix\(rainColor, trailColor, trailVeil \* 0\.18\);/);
   assert.match(source, /uniform vec2 uClearTexelSize;/);
-  assert.match(source, /uEraserSmooth: \{ value: new THREE\.Vector2\(0\.58, 0\.92\) \},/);
-  assert.match(source, /trailAlpha = max\(trailAlpha, sampleRainAlpha\(vec2\(0\.0, -px\.y \* 4\.5\), 0\.94\)\);/);
-  assert.match(source, /mask = min\(mask \* 1\.18, 1\.0\);/);
-  assert.match(source, /mistAddMaterial\.uniforms\.uAmount\.value = rainDelta \/ 7\.5;/);
+  assert.match(source, /uEraserSmooth: \{ value: new THREE\.Vector2\(0\.4, 0\.78\) \},/);
+  assert.match(source, /trailAlpha = max\(trailAlpha, sampleRainAlpha\(vec2\(0\.0, -px\.y \* 9\.0\), 0\.76\)\);/);
+  assert.match(source, /mask = min\(mask \* 1\.55, 1\.0\);/);
+  assert.match(source, /new THREE\.Color\(\s*MIST_INITIAL_FILL,\s*MIST_INITIAL_FILL,\s*MIST_INITIAL_FILL\s*\)/);
+  assert.match(source, /renderer\.setClearColor\(mistSeedColor, MIST_INITIAL_FILL\);/);
+  assert.match(source, /mistAddMaterial\.uniforms\.uAmount\.value = rainDelta \/ MIST_ACCUMULATION_DIVISOR;/);
 });
 
 test("native glass mixes realtime background glare into the pane", async () => {

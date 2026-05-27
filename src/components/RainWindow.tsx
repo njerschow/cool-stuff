@@ -54,6 +54,10 @@ const ROAD_DASH_COUNT = 34;
 const BUILDING_DEPTH_COUNT = 17;
 const STREET_LIGHT_COUNT = 13;
 const SHOP_GLOW_COUNT = 20;
+const MIST_INITIAL_FILL = 0.68;
+const MIST_ALPHA_SCALE = 0.34;
+const MIST_TRAIL_VEIL = 0.02;
+const MIST_ACCUMULATION_DIVISOR = 10.5;
 
 const qualitySettings = {
   balanced: {
@@ -241,8 +245,8 @@ void main() {
   vec3 glare = texture2D(uGlare, uv).rgb;
   vec3 sceneColor = deepenPaneBase(texture2D(uScene, uv).rgb) + glare * 0.18;
   vec3 background = deepenPaneBase(texture2D(uFrost, uv).rgb);
-  vec3 mistBackground = deepenPaneBase(texture2D(uMistBackground, uv).rgb) + vec3(0.0015, 0.002, 0.0025);
-  float mistAlpha = clamp(texture2D(uMistTex, uv).r * 0.25 + trailVeil * 0.08, 0.0, 0.46);
+  vec3 mistBackground = deepenPaneBase(texture2D(uMistBackground, uv).rgb) + vec3(0.0025, 0.0032, 0.004);
+  float mistAlpha = clamp(texture2D(uMistTex, uv).r * ${MIST_ALPHA_SCALE.toFixed(2)} + trailVeil * ${MIST_TRAIL_VEIL.toFixed(2)}, 0.0, 0.52);
   vec3 baseColor = mix(background, mistBackground, mistAlpha);
   vec3 dropColor = deepenPaneBase(texture2D(uFrost, refractUv).rgb);
   float lensContrast = 1.32 + mask * 0.28 + splotchMask * 0.16;
@@ -352,12 +356,13 @@ float sampleRainAlpha(vec2 offset, float weight) {
 void main() {
   vec2 px = uClearTexelSize;
   float trailAlpha = sampleRainAlpha(vec2(0.0), 1.0);
-  trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(0.0, px.y * 2.5), 0.86));
-  trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(0.0, -px.y * 4.5), 0.94));
-  trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(px.x * 2.0, 0.0), 0.68));
-  trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(-px.x * 2.0, 0.0), 0.68));
+  trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(0.0, px.y * 3.5), 0.82));
+  trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(0.0, -px.y * 5.5), 0.96));
+  trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(0.0, -px.y * 9.0), 0.76));
+  trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(px.x * 2.75, 0.0), 0.72));
+  trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(-px.x * 2.75, 0.0), 0.72));
   float mask = smoothstep(uEraserSmooth.x, uEraserSmooth.y, trailAlpha);
-  mask = min(mask * 1.18, 1.0);
+  mask = min(mask * 1.55, 1.0);
   gl_FragColor = vec4(0.0, 0.0, 0.0, mask);
 }
 `;
@@ -778,7 +783,7 @@ export function RainWindow({
       transparent: true,
       uniforms: {
         uClearTexelSize: { value: new THREE.Vector2(1, 1) },
-        uEraserSmooth: { value: new THREE.Vector2(0.58, 0.92) },
+        uEraserSmooth: { value: new THREE.Vector2(0.4, 0.78) },
         uRainMap: { value: raindropTarget.texture },
       },
       vertexShader: glassVertexShader,
@@ -904,6 +909,11 @@ export function RainWindow({
     const dropPosition = new THREE.Vector3();
     const dropQuaternion = new THREE.Quaternion();
     const dropScale = new THREE.Vector3();
+    const mistSeedColor = new THREE.Color(
+      MIST_INITIAL_FILL,
+      MIST_INITIAL_FILL,
+      MIST_INITIAL_FILL
+    );
 
     const resize = () => {
       const { width, height } = host.getBoundingClientRect();
@@ -948,7 +958,7 @@ export function RainWindow({
         1 / rainHeight
       );
       renderer.setRenderTarget(mistTarget);
-      renderer.setClearColor(0x000000, 0);
+      renderer.setClearColor(mistSeedColor, MIST_INITIAL_FILL);
       renderer.clear(true, true, true);
       renderer.setRenderTarget(dropletTarget);
       renderer.setClearColor(0x000000, 0);
@@ -1174,7 +1184,7 @@ export function RainWindow({
         renderer.render(microdropScene, dropCamera);
       }
       if (rainDelta > 0) {
-        mistAddMaterial.uniforms.uAmount.value = rainDelta / 7.5;
+        mistAddMaterial.uniforms.uAmount.value = rainDelta / MIST_ACCUMULATION_DIVISOR;
         renderer.setRenderTarget(mistTarget);
         mistQuad.material = mistAddMaterial;
         renderer.render(mistScene, screenCamera);
