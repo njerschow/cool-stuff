@@ -28,6 +28,10 @@ export type RainWindowBenchmarkStats = {
 };
 
 type Car = {
+  fadeMaterials: Array<{
+    material: THREE.Material;
+    opacity: number;
+  }>;
   group: THREE.Group;
   baseSpeed: number;
   direction: 1 | -1;
@@ -36,9 +40,20 @@ type Car = {
   wobble: number;
 };
 
-const CAR_TRACK_LENGTH = 68;
+const CAR_TRACK_LENGTH = 118;
+const CAR_TRACK_CENTER_Z = -42;
+const CAR_FADE_NEAR_START_Z = 5;
+const CAR_FADE_NEAR_END_Z = 17;
+const CAR_FADE_FAR_START_Z = -84;
+const CAR_FADE_FAR_END_Z = -101;
 const CARS_PER_LANE = 6;
 const MIN_CAR_OFFSET_SPACING = CAR_TRACK_LENGTH / CARS_PER_LANE;
+const ROAD_LENGTH = 132;
+const ROAD_CENTER_Z = -38;
+const ROAD_DASH_COUNT = 34;
+const BUILDING_DEPTH_COUNT = 17;
+const STREET_LIGHT_COUNT = 13;
+const SHOP_GLOW_COUNT = 20;
 
 const qualitySettings = {
   balanced: {
@@ -46,14 +61,14 @@ const qualitySettings = {
     raindropMapScale: 2.14,
     spawnLimit: 2000,
     visualDropScale: 1,
-    windowBudget: 420,
+    windowBudget: 900,
   },
   cinematic: {
     pixelRatio: 1.45,
     raindropMapScale: 1.62,
     spawnLimit: 2000,
     visualDropScale: 1,
-    windowBudget: 640,
+    windowBudget: 1200,
   },
 } satisfies Record<
   RenderQuality,
@@ -1260,9 +1275,12 @@ function populateWorld(
     metalness: 0.26,
     roughness: 0.18,
   });
-  const road = new THREE.Mesh(new THREE.PlaneGeometry(15.5, 92), roadMaterial);
+  const road = new THREE.Mesh(
+    new THREE.PlaneGeometry(15.5, ROAD_LENGTH),
+    roadMaterial
+  );
   road.rotation.x = -Math.PI / 2;
-  road.position.set(0, 0, -24);
+  road.position.set(0, 0, ROAD_CENTER_Z);
   scene.add(road);
   disposables.push(road.geometry, roadMaterial);
   createRoadDetails(scene, disposables);
@@ -1273,9 +1291,12 @@ function populateWorld(
     roughness: 0.48,
   });
   for (const x of [-9.8, 9.8]) {
-    const left = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 92), sidewalkMaterial);
+    const left = new THREE.Mesh(
+      new THREE.PlaneGeometry(4.4, ROAD_LENGTH),
+      sidewalkMaterial
+    );
     left.rotation.x = -Math.PI / 2;
-    left.position.set(x, 0.015, -24);
+    left.position.set(x, 0.015, ROAD_CENTER_Z);
     scene.add(left);
     disposables.push(left.geometry);
   }
@@ -1344,7 +1365,7 @@ function createRoadDetails(
   const dashGeo = new THREE.PlaneGeometry(0.12, 2.6);
   disposables.push(stripeMat, dashGeo);
 
-  for (let index = 0; index < 22; index += 1) {
+  for (let index = 0; index < ROAD_DASH_COUNT; index += 1) {
     const dash = new THREE.Mesh(dashGeo, stripeMat);
     dash.rotation.x = -Math.PI / 2;
     dash.position.set(0.08, 0.037, 4 - index * 3.2);
@@ -1386,7 +1407,7 @@ function createBuildings(
   const tempColor = new THREE.Color();
   let windowIndex = 0;
 
-  for (let depthIndex = 0; depthIndex < 8; depthIndex += 1) {
+  for (let depthIndex = 0; depthIndex < BUILDING_DEPTH_COUNT; depthIndex += 1) {
     for (const side of [-1, 1] as const) {
       const height = 6 + Math.random() * 8;
       const width = 3.4 + Math.random() * 2.6;
@@ -1461,7 +1482,7 @@ function createStreetLights(
       });
   disposables.push(poleGeo, poleMat, lampGeo, lampMat);
 
-  for (let index = 0; index < 7; index += 1) {
+  for (let index = 0; index < STREET_LIGHT_COUNT; index += 1) {
     const z = -5.2 - index * 4.8;
     const x = index % 2 === 0 ? -5.35 : 5.35;
     const pole = new THREE.Mesh(poleGeo, poleMat);
@@ -1472,7 +1493,7 @@ function createStreetLights(
     lamp.position.set(x, 3.32, z);
     scene.add(lamp);
 
-    if (lampsOn) {
+    if (lampsOn && index < 10) {
       const light = new THREE.PointLight(0xffa55f, profile.streetLight, 12, 1.7);
       light.position.copy(lamp.position);
       scene.add(light);
@@ -1490,7 +1511,7 @@ function createShopGlows(
   const palette = [0x62d0c8, 0xff8f70, 0xf6c66f, 0x7db7ff];
   disposables.push(signGeo, glowGeo);
 
-  for (let index = 0; index < 8; index += 1) {
+  for (let index = 0; index < SHOP_GLOW_COUNT; index += 1) {
     const side = index % 2 === 0 ? -1 : 1;
     const z = -6.5 - Math.floor(index / 2) * 5.6;
     const color = palette[index % palette.length];
@@ -1523,9 +1544,11 @@ function createShopGlows(
     sign.rotation.y = rotation;
     scene.add(sign);
 
-    const light = new THREE.PointLight(color, profile.shopLight, 5.5, 2.1);
-    light.position.set(x - side * 0.45, 1.5, z);
-    scene.add(light);
+    if (index < 12) {
+      const light = new THREE.PointLight(color, profile.shopLight, 5.5, 2.1);
+      light.position.set(x - side * 0.45, 1.5, z);
+      scene.add(light);
+    }
 
     disposables.push(signMat, haloMat);
   }
@@ -1550,16 +1573,25 @@ function createCar(
     clearcoatRoughness: 0.26,
     color: config.color,
     metalness: 0.45,
+    opacity: 1,
     roughness: 0.34,
+    transparent: true,
   });
   const cabinMat = new THREE.MeshStandardMaterial({
     color: 0x15212a,
     emissive: profile.cabinEmissive,
     emissiveIntensity: 0.46,
     metalness: 0.2,
+    opacity: 1,
     roughness: 0.18,
+    transparent: true,
   });
-  const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff0b5, toneMapped: false });
+  const lightMat = new THREE.MeshBasicMaterial({
+    color: 0xfff0b5,
+    opacity: 1,
+    toneMapped: false,
+    transparent: true,
+  });
   const reflectionMat = new THREE.MeshBasicMaterial({
     blending: THREE.AdditiveBlending,
     color: 0xffe7b0,
@@ -1569,7 +1601,19 @@ function createCar(
     toneMapped: false,
     transparent: true,
   });
-  const tailMat = new THREE.MeshBasicMaterial({ color: 0xff3347, toneMapped: false });
+  const tailMat = new THREE.MeshBasicMaterial({
+    color: 0xff3347,
+    opacity: 1,
+    toneMapped: false,
+    transparent: true,
+  });
+  const fadeMaterials = [
+    { material: bodyMat, opacity: 1 },
+    { material: cabinMat, opacity: 1 },
+    { material: lightMat, opacity: 1 },
+    { material: reflectionMat, opacity: 0.24 },
+    { material: tailMat, opacity: 1 },
+  ];
 
   const body = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.42, 0.9), bodyMat);
   body.position.y = 0.38;
@@ -1608,11 +1652,17 @@ function createCar(
   return {
     baseSpeed: config.speed,
     direction: config.direction,
+    fadeMaterials,
     group,
     laneX: config.laneX,
     offset: config.offset,
     wobble: config.wobble,
   };
+}
+
+function smoothstep(edge0: number, edge1: number, value: number) {
+  const x = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
+  return x * x * (3 - 2 * x);
 }
 
 function updateCars(cars: Car[], time: number) {
@@ -1621,8 +1671,18 @@ function updateCars(cars: Car[], time: number) {
       ((((time * car.baseSpeed * car.direction + car.offset) % CAR_TRACK_LENGTH) +
         CAR_TRACK_LENGTH) %
         CAR_TRACK_LENGTH) -
-      CAR_TRACK_LENGTH / 2 -
-      22;
+      CAR_TRACK_LENGTH / 2 +
+      CAR_TRACK_CENTER_Z;
+    const nearFade =
+      1 - smoothstep(CAR_FADE_NEAR_START_Z, CAR_FADE_NEAR_END_Z, z);
+    const farFade = smoothstep(CAR_FADE_FAR_END_Z, CAR_FADE_FAR_START_Z, z);
+    const opacity = Math.max(0, Math.min(1, nearFade * farFade));
+
+    for (const { material, opacity: baseOpacity } of car.fadeMaterials) {
+      material.opacity = baseOpacity * opacity;
+    }
+
+    car.group.visible = opacity > 0.015;
     car.group.position.x = car.laneX + Math.sin(time * 1.1 + car.wobble) * 0.035;
     car.group.position.z = z;
     car.group.position.y = Math.sin(time * 3 + car.wobble) * 0.012;
