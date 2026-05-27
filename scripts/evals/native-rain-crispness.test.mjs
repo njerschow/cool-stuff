@@ -54,6 +54,8 @@ test("falling drops keep visible wet residue trails", async () => {
   assert.match(source, /trailDropDensity: 0\.34,/);
   assert.match(source, /trailDropSize: \[0\.18, 0\.34\],/);
   assert.match(source, /trailSpread: 0\.78,/);
+  assert.match(source, /float mistAlpha = clamp\(texture2D\(uMistTex, uv\)\.r \* 0\.25 \+ trailVeil \* 0\.08, 0\.0, 0\.46\);/);
+  assert.match(source, /rainColor = mix\(rainColor, trailColor, trailVeil \* 0\.18\);/);
   assert.match(source, /mistAddMaterial\.uniforms\.uAmount\.value = rainDelta \/ 7\.5;/);
 });
 
@@ -63,6 +65,11 @@ test("native glass mixes realtime background glare into the pane", async () => {
   assert.match(source, /uniform sampler2D uGlare;/);
   assert.match(source, /uGlare: \{ value: glareTargetA\.texture \},/);
   assert.match(source, /const renderGlare = \(\) => \{/);
+  assert.match(source, /const glareWidth = Math\.max\(1, Math\.floor\(targetWidth \* 0\.52\)\);/);
+  assert.match(source, /renderPostMaterial\(glareExtractMaterial, glareTargetB\);/);
+  assert.match(source, /renderBlur\(glareTargetB, 3, glareTargetA\);/);
+  assert.doesNotMatch(source, /glareBlurMaterial\.uniforms\.uRadius\.value = 5\.8;/);
+  assert.doesNotMatch(source, /glareBlurMaterial\.uniforms\.uRadius\.value = 7\.6;/);
   assert.match(source, /renderGlare\(\);\n      copyToGlassTarget\(\);/);
   assert.match(source, /float brightMask = smoothstep\(0\.28, 0\.98, luma\);/);
   assert.match(source, /rainColor \+= glare \* \(0\.46 \+ mask \* 0\.28 \+ trailVeil \* 0\.12\);/);

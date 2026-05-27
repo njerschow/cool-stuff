@@ -209,7 +209,7 @@ void main() {
   vec3 sceneColor = deepenPaneBase(texture2D(uScene, uv).rgb) + glare * 0.18;
   vec3 background = deepenPaneBase(texture2D(uFrost, uv).rgb);
   vec3 mistBackground = deepenPaneBase(texture2D(uMistBackground, uv).rgb) + vec3(0.0015, 0.002, 0.0025);
-  float mistAlpha = clamp(texture2D(uMistTex, uv).r * 0.2, 0.0, 0.38);
+  float mistAlpha = clamp(texture2D(uMistTex, uv).r * 0.25 + trailVeil * 0.08, 0.0, 0.46);
   vec3 baseColor = mix(background, mistBackground, mistAlpha);
   vec3 dropColor = deepenPaneBase(texture2D(uFrost, refractUv).rgb);
   float lensContrast = 1.32 + mask * 0.28 + splotchMask * 0.16;
@@ -219,7 +219,7 @@ void main() {
   dropColor += vec3(specular) * (mask * 0.08);
   vec3 rainColor = mix(baseColor, dropColor, dropMask);
   vec3 trailColor = mix(baseColor, dropColor, 0.32) * (1.0 - trailVeil * 0.18);
-  rainColor = mix(rainColor, trailColor, trailVeil * 0.28);
+  rainColor = mix(rainColor, trailColor, trailVeil * 0.18);
   rainColor += glare * (0.46 + mask * 0.28 + trailVeil * 0.12);
   float normalizedVisibility = clamp((uRainVisibility - uRainVisibilityMin) / uRainVisibilityRange, 0.0, 1.0);
   float overlayOpacity = uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale;
@@ -857,8 +857,8 @@ export function RainWindow({
       const rainHeight = Math.max(1, Math.floor(targetHeight * settings.raindropMapScale));
 
       target.setSize(targetWidth, targetHeight);
-      const glareWidth = Math.max(1, Math.floor(targetWidth * 0.28));
-      const glareHeight = Math.max(1, Math.floor(targetHeight * 0.28));
+      const glareWidth = Math.max(1, Math.floor(targetWidth * 0.52));
+      const glareHeight = Math.max(1, Math.floor(targetHeight * 0.52));
       glareTargetA.setSize(glareWidth, glareHeight);
       glareTargetB.setSize(glareWidth, glareHeight);
       glareBlurMaterial.uniforms.uTexelSize.value.set(
@@ -960,17 +960,8 @@ export function RainWindow({
 
     const renderGlare = () => {
       glareExtractMaterial.uniforms.uScene.value = target.texture;
-      renderPostMaterial(glareExtractMaterial, glareTargetA);
-
-      glareBlurMaterial.uniforms.uImage.value = glareTargetA.texture;
-      glareBlurMaterial.uniforms.uDirection.value.set(1, 0);
-      glareBlurMaterial.uniforms.uRadius.value = 5.8;
-      renderPostMaterial(glareBlurMaterial, glareTargetB);
-
-      glareBlurMaterial.uniforms.uImage.value = glareTargetB.texture;
-      glareBlurMaterial.uniforms.uDirection.value.set(0, 1);
-      glareBlurMaterial.uniforms.uRadius.value = 7.6;
-      renderPostMaterial(glareBlurMaterial, glareTargetA);
+      renderPostMaterial(glareExtractMaterial, glareTargetB);
+      renderBlur(glareTargetB, 3, glareTargetA);
     };
 
     const renderBlur = (
