@@ -36,6 +36,10 @@ type Car = {
   wobble: number;
 };
 
+const CAR_TRACK_LENGTH = 68;
+const CARS_PER_LANE = 6;
+const MIN_CAR_OFFSET_SPACING = CAR_TRACK_LENGTH / CARS_PER_LANE;
+
 const qualitySettings = {
   balanced: {
     pixelRatio: 1.1,
@@ -1282,19 +1286,35 @@ function populateWorld(
   createShopGlows(scene, profile, disposables);
 
   const palettes = [0x2b5f74, 0x702f44, 0x182e4f, 0x7d6a46, 0x33403b, 0x5f2931];
-  for (let index = 0; index < 12; index += 1) {
-    const direction: 1 | -1 = index % 2 === 0 ? 1 : -1;
-    const laneX = index % 2 === 0 ? -2.2 : 2.25;
-    cars.push(
-      createCar({
-        color: palettes[index % palettes.length],
-        direction,
-        laneX,
-        offset: index * 6.7 + Math.random() * 4,
-        speed: 4.4 + Math.random() * 2.8,
-        wobble: Math.random() * Math.PI * 2,
-      }, profile, scene, disposables)
-    );
+  const lanes: Array<{ direction: 1 | -1; laneX: number; phase: number; speed: number }> = [
+    {
+      direction: 1,
+      laneX: -2.2,
+      phase: Math.random() * MIN_CAR_OFFSET_SPACING,
+      speed: 4.9 + Math.random() * 0.8,
+    },
+    {
+      direction: -1,
+      laneX: 2.25,
+      phase: Math.random() * MIN_CAR_OFFSET_SPACING,
+      speed: 5.2 + Math.random() * 0.8,
+    },
+  ];
+
+  for (const [laneIndex, lane] of lanes.entries()) {
+    for (let laneCarIndex = 0; laneCarIndex < CARS_PER_LANE; laneCarIndex += 1) {
+      const carIndex = laneIndex * CARS_PER_LANE + laneCarIndex;
+      cars.push(
+        createCar({
+          color: palettes[carIndex % palettes.length],
+          direction: lane.direction,
+          laneX: lane.laneX,
+          offset: lane.phase + laneCarIndex * MIN_CAR_OFFSET_SPACING,
+          speed: lane.speed,
+          wobble: Math.random() * Math.PI * 2,
+        }, profile, scene, disposables)
+      );
+    }
   }
 
   const sillMaterial = new THREE.MeshStandardMaterial({
@@ -1585,13 +1605,12 @@ function createCar(
 }
 
 function updateCars(cars: Car[], time: number) {
-  const trackLength = 68;
   for (const car of cars) {
     const z =
-      ((((time * car.baseSpeed * car.direction + car.offset) % trackLength) +
-        trackLength) %
-        trackLength) -
-      trackLength / 2 -
+      ((((time * car.baseSpeed * car.direction + car.offset) % CAR_TRACK_LENGTH) +
+        CAR_TRACK_LENGTH) %
+        CAR_TRACK_LENGTH) -
+      CAR_TRACK_LENGTH / 2 -
       22;
     car.group.position.x = car.laneX + Math.sin(time * 1.1 + car.wobble) * 0.035;
     car.group.position.z = z;
