@@ -308,11 +308,23 @@ void main() {
 
 const mistEraseFragmentShader = `
 uniform sampler2D uRainMap;
+uniform vec2 uClearTexelSize;
 uniform vec2 uEraserSmooth;
 varying vec2 vUv;
 
+float sampleRainAlpha(vec2 offset, float weight) {
+  return texture2D(uRainMap, clamp(vUv + offset, 0.0, 1.0)).a * weight;
+}
+
 void main() {
-  float mask = smoothstep(uEraserSmooth.x, uEraserSmooth.y, texture2D(uRainMap, vUv).a);
+  vec2 px = uClearTexelSize;
+  float trailAlpha = sampleRainAlpha(vec2(0.0), 1.0);
+  trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(0.0, px.y * 2.5), 0.86));
+  trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(0.0, -px.y * 4.5), 0.94));
+  trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(px.x * 2.0, 0.0), 0.68));
+  trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(-px.x * 2.0, 0.0), 0.68));
+  float mask = smoothstep(uEraserSmooth.x, uEraserSmooth.y, trailAlpha);
+  mask = min(mask * 1.18, 1.0);
   gl_FragColor = vec4(0.0, 0.0, 0.0, mask);
 }
 `;
@@ -720,7 +732,8 @@ export function RainWindow({
       toneMapped: false,
       transparent: true,
       uniforms: {
-        uEraserSmooth: { value: new THREE.Vector2(0.93, 1) },
+        uClearTexelSize: { value: new THREE.Vector2(1, 1) },
+        uEraserSmooth: { value: new THREE.Vector2(0.58, 0.92) },
         uRainMap: { value: raindropTarget.texture },
       },
       vertexShader: glassVertexShader,
@@ -876,6 +889,10 @@ export function RainWindow({
       raindropTarget.setSize(rainWidth, rainHeight);
       mistTarget.setSize(rainWidth, rainHeight);
       dropletTarget.setSize(rainWidth, rainHeight);
+      mistEraseMaterial.uniforms.uClearTexelSize.value.set(
+        1 / rainWidth,
+        1 / rainHeight
+      );
       renderer.setRenderTarget(mistTarget);
       renderer.setClearColor(0x000000, 0);
       renderer.clear(true, true, true);

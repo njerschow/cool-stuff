@@ -56,6 +56,10 @@ test("falling drops keep visible wet residue trails", async () => {
   assert.match(source, /trailSpread: 0\.78,/);
   assert.match(source, /float mistAlpha = clamp\(texture2D\(uMistTex, uv\)\.r \* 0\.25 \+ trailVeil \* 0\.08, 0\.0, 0\.46\);/);
   assert.match(source, /rainColor = mix\(rainColor, trailColor, trailVeil \* 0\.18\);/);
+  assert.match(source, /uniform vec2 uClearTexelSize;/);
+  assert.match(source, /uEraserSmooth: \{ value: new THREE\.Vector2\(0\.58, 0\.92\) \},/);
+  assert.match(source, /trailAlpha = max\(trailAlpha, sampleRainAlpha\(vec2\(0\.0, -px\.y \* 4\.5\), 0\.94\)\);/);
+  assert.match(source, /mask = min\(mask \* 1\.18, 1\.0\);/);
   assert.match(source, /mistAddMaterial\.uniforms\.uAmount\.value = rainDelta \/ 7\.5;/);
 });
 
