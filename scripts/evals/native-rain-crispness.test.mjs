@@ -48,19 +48,41 @@ test("native raindrops render slightly larger water lenses", async () => {
 
 test("falling drops keep visible wet residue trails", async () => {
   const source = await rainWindowSource();
+  const simulation = await readFile(
+    path.join(root, "src/simulation/RaindropPaneSimulation.ts"),
+    "utf8"
+  );
 
   assert.match(source, /float trailVeil = smoothstep\(0\.56, 0\.9, compose\.a\)/);
-  assert.match(source, /trailDistance: \[13, 22\],/);
-  assert.match(source, /trailDropDensity: 0\.34,/);
-  assert.match(source, /trailDropSize: \[0\.18, 0\.34\],/);
-  assert.match(source, /trailSpread: 0\.78,/);
-  assert.match(source, /float mistAlpha = clamp\(texture2D\(uMistTex, uv\)\.r \* 0\.25 \+ trailVeil \* 0\.08, 0\.0, 0\.46\);/);
+  assert.match(source, /trailDistance: \[9, 16\],/);
+  assert.match(source, /trailDropDensity: 0\.42,/);
+  assert.match(source, /trailDropSize: \[0\.22, 0\.42\],/);
+  assert.match(source, /trailSpread: 0\.98,/);
+  assert.match(source, /float mistValue = texture2D\(uMistTex, uv\)\.r;/);
+  assert.match(source, /float clearChannel = smoothstep\(0\.08, 0\.54, texture2D\(uTrailEraseMap, uv\)\.a\);/);
+  assert.match(source, /float mistAlpha = clamp\(mistValue \* 0\.25 \+ trailVeil \* 0\.08 - clearChannel \* 0\.32, 0\.0, 0\.46\);/);
   assert.match(source, /rainColor = mix\(rainColor, trailColor, trailVeil \* 0\.18\);/);
+  assert.match(source, /rainColor = mix\(rainColor, clearChannelColor, clearChannel \* \(0\.26 \+ mistValue \* 0\.28\)\);/);
   assert.match(source, /uniform vec2 uClearTexelSize;/);
   assert.match(source, /uEraserSmooth: \{ value: new THREE\.Vector2\(0\.58, 0\.92\) \},/);
+  assert.match(source, /uniform sampler2D uTrailEraseMap;/);
+  assert.match(source, /const trailEraseTarget = new THREE\.WebGLRenderTarget\(1, 1,/);
+  assert.match(source, /uTrailEraseMap: \{ value: trailEraseTarget\.texture \},/);
+  assert.match(source, /const updateTrailEraseMesh = \(\) => \{/);
+  assert.match(source, /renderer\.render\(trailEraseScene, dropCamera\);/);
+  assert.match(source, /trailAlpha = max\(trailAlpha, sweepAlpha\);/);
   assert.match(source, /trailAlpha = max\(trailAlpha, sampleRainAlpha\(vec2\(0\.0, -px\.y \* 4\.5\), 0\.94\)\);/);
   assert.match(source, /mask = min\(mask \* 1\.18, 1\.0\);/);
   assert.match(source, /mistAddMaterial\.uniforms\.uAmount\.value = rainDelta \/ 7\.5;/);
+  assert.match(simulation, /export type RenderTrail = \{/);
+  assert.match(simulation, /type PaneTrail = RenderTrail & \{/);
+  assert.match(simulation, /previousX: number;/);
+  assert.match(simulation, /private readonly trails: PaneTrail\[\] = \[\];/);
+  assert.match(simulation, /private addTrailSegment\(drop: PaneDrop\) \{/);
+  assert.match(simulation, /this\.addTrailSegment\(drop\);/);
+  assert.match(simulation, /private updateTrails\(delta: number\) \{/);
+  assert.match(simulation, /get renderTrails\(\): RenderTrail\[\] \{/);
+  assert.match(simulation, /drop\.previousX = drop\.x;/);
 });
 
 test("native glass mixes realtime background glare into the pane", async () => {

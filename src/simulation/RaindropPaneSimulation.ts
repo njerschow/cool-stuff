@@ -9,6 +9,8 @@ type PaneDrop = {
   nextMotionTime: number;
   nextTrailDistance: number;
   parent?: PaneDrop;
+  previousX: number;
+  previousY: number;
   resistance: number;
   shifting: number;
   sizeX: number;
@@ -47,6 +49,20 @@ export type RenderDrop = {
   sizeY: number;
   x: number;
   y: number;
+};
+
+export type RenderTrail = {
+  angle: number;
+  length: number;
+  strength: number;
+  width: number;
+  x: number;
+  y: number;
+};
+
+type PaneTrail = RenderTrail & {
+  age: number;
+  lifespan: number;
 };
 
 const defaultOptions: PaneSimulationOptions = {
@@ -109,6 +125,8 @@ export class RaindropPaneSimulation {
 
   private readonly options: PaneSimulationOptions;
 
+  private readonly trails: PaneTrail[] = [];
+
   private nextSpawn = 0;
 
   private time = 0;
@@ -131,6 +149,58 @@ export class RaindropPaneSimulation {
         x: drop.x,
         y: drop.y,
       }));
+  }
+
+  get renderTrails(): RenderTrail[] {
+    const residueTrails = this.trails.map((trail) => {
+      const fade = 1 - clamp(trail.age / trail.lifespan, 0, 1);
+      return {
+        angle: trail.angle,
+        length: trail.length,
+        strength: trail.strength * Math.pow(fade, 0.65),
+        width: trail.width,
+        x: trail.x,
+        y: trail.y,
+      };
+    });
+
+    const movingTrails = this.drops
+      .filter((drop) => !drop.destroyed)
+      .flatMap((drop) => {
+        const motionDx = drop.x - drop.previousX;
+        const motionDy = drop.y - drop.previousY;
+        const motionDistance = Math.hypot(motionDx, motionDy);
+        const segmentDx = drop.x - drop.lastTrailX;
+        const segmentDy = drop.y - drop.lastTrailY;
+        const segmentDistance = Math.hypot(segmentDx, segmentDy);
+        const distance = Math.max(motionDistance, segmentDistance);
+
+        if (distance < 1.25 || Math.abs(drop.velocityY) < 4) {
+          return [];
+        }
+
+        const useSegment = segmentDistance > motionDistance * 1.65;
+        const dx = useSegment ? segmentDx : motionDx;
+        const dy = useSegment ? segmentDy : motionDy;
+        const fromX = useSegment ? drop.lastTrailX : drop.previousX;
+        const fromY = useSegment ? drop.lastTrailY : drop.previousY;
+        const width = clamp(drop.sizeX * 0.24, 8, 26);
+        const length = distance + clamp(drop.sizeY * 0.58, 14, 50);
+        const strength = clamp(drop.sizeX / 82 + Math.abs(drop.velocityY) * 0.0011, 0.62, 1);
+
+        return [
+          {
+            angle: Math.atan2(dy, dx) - Math.PI / 2,
+            length,
+            strength,
+            width,
+            x: (fromX + drop.x) * 0.5,
+            y: (fromY + drop.y) * 0.5,
+          },
+        ];
+      });
+
+    return residueTrails.concat(movingTrails);
   }
 
   resize(width: number, height: number) {
@@ -160,7 +230,33 @@ export class RaindropPaneSimulation {
 
     this.updateDrops(delta);
     this.updateCollisions();
+    this.updateTrails(delta);
     this.compactDrops();
+  }
+
+  private addTrailSegment(drop: PaneDrop) {
+    const dx = drop.x - drop.lastTrailX;
+    const dy = drop.y - drop.lastTrailY;
+    const distance = Math.hypot(dx, dy);
+
+    if (distance < 2) {
+      return;
+    }
+
+    this.trails.push({
+      age: 0,
+      angle: Math.atan2(dy, dx) - Math.PI / 2,
+      length: distance + clamp(drop.sizeY * 0.75, 20, 64),
+      lifespan: rand(2, 4.2),
+      strength: clamp(drop.sizeX / 66 + Math.abs(drop.velocityY) * 0.0014, 0.72, 1),
+      width: clamp(drop.sizeX * 0.22, 8, 28),
+      x: (drop.lastTrailX + drop.x) * 0.5,
+      y: (drop.lastTrailY + drop.y) * 0.5,
+    });
+
+    if (this.trails.length > this.options.spawnLimit) {
+      this.trails.splice(0, this.trails.length - this.options.spawnLimit);
+    }
   }
 
   private addDrop(drop: PaneDrop) {
@@ -192,6 +288,8 @@ export class RaindropPaneSimulation {
       nextMotionTime: 0,
       nextTrailDistance: rand(...this.options.trailDistance),
       resistance: 0,
+      previousX: x,
+      previousY: y,
       shifting: 0,
       sizeX: size,
       sizeY: size,
@@ -285,6 +383,8 @@ export class RaindropPaneSimulation {
       return;
     }
 
+    this.addTrailSegment(drop);
+
     const childSize = drop.sizeX * rand(...this.options.trailDropSize);
     const child = this.createDrop(
       drop.x + rand(-5, 5),
@@ -359,6 +459,9 @@ export class RaindropPaneSimulation {
         this.randomMotion(drop);
       }
 
+      drop.previousX = drop.x;
+      drop.previousY = drop.y;
+
       this.setDropMass(drop, drop.mass - this.options.evaporate * delta);
       if (drop.mass <= 0) {
         drop.destroyed = true;
@@ -404,6 +507,18 @@ export class RaindropPaneSimulation {
         drop.y < -100
       ) {
         drop.destroyed = true;
+      }
+    }
+  }
+
+  private updateTrails(delta: number) {
+    for (let index = this.trails.length - 1; index >= 0; index -= 1) {
+      const trail = this.trails[index];
+      trail.age += delta;
+
+      if (trail.age >= trail.lifespan) {
+        this.trails[index] = this.trails[this.trails.length - 1];
+        this.trails.length -= 1;
       }
     }
   }
