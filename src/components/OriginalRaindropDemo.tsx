@@ -21,6 +21,12 @@ type RaindropFxConstructor = new (options: {
   [key: string]: unknown;
 }) => RaindropFxInstance;
 
+export type RaindropFxBenchmarkStats = {
+  canvasMp: number;
+  captureHz: number;
+  captureMs: number;
+};
+
 declare global {
   interface Window {
     RaindropFX?: RaindropFxConstructor;
@@ -99,16 +105,20 @@ export function OriginalRaindropDemo() {
 }
 
 export function OriginalRaindropOverlay({
+  benchmarkId,
   canvasId,
   captureIntervalMs = 700,
   effectScale = 1,
+  onBenchmark,
   sourceSelector,
   variant = "blend",
   visibility = RAIN_VISIBILITY_SLIDER.defaultValue,
 }: {
+  benchmarkId?: string;
   canvasId?: string;
   captureIntervalMs?: number;
   effectScale?: number;
+  onBenchmark?: (id: string, stats: RaindropFxBenchmarkStats) => void;
   sourceSelector?: string;
   variant?: "blend" | "snapshot";
   visibility?: number;
@@ -128,10 +138,12 @@ export function OriginalRaindropOverlay({
     <RaindropFxCanvas
       ariaLabel="Street seen through rain glass"
       background={createNeutralRainBackground()}
+      benchmarkId={benchmarkId}
       canvasId={canvasId}
       captureIntervalMs={captureIntervalMs}
       className={`raindrop-fx-demo raindrop-fx-overlay raindrop-fx-overlay--${variant}`}
       effectScale={effectScale}
+      onBenchmark={onBenchmark}
       options={undefined}
       sourceSelector={sourceSelector}
       style={style}
@@ -297,29 +309,43 @@ export function MirroredRainOverlay({
 function RaindropFxCanvas({
   ariaLabel,
   background,
+  benchmarkId,
   canvasId = "canvas",
   captureIntervalMs,
   className,
   effectScale = 1,
+  onBenchmark,
   options,
   sourceSelector,
   style,
 }: {
   ariaLabel: string;
   background: string;
+  benchmarkId?: string;
   canvasId?: string;
   captureIntervalMs?: number;
   className: string;
   effectScale?: number;
+  onBenchmark?: (id: string, stats: RaindropFxBenchmarkStats) => void;
   options?: Record<string, unknown>;
   sourceSelector?: string;
   style?: CSSProperties;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const benchmarkIdRef = useRef(benchmarkId);
+  const benchmarkRef = useRef(onBenchmark);
   const hostRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    benchmarkIdRef.current = benchmarkId;
+    benchmarkRef.current = onBenchmark;
+  }, [benchmarkId, onBenchmark]);
+
+  useEffect(() => {
     let cancelled = false;
+    let benchmarkCaptureCount = 0;
+    let benchmarkCaptureMs = 0;
+    let benchmarkInterval = 0;
     let effect: RaindropFxInstance | undefined;
     let observer: ResizeObserver | undefined;
     let captureInterval = 0;
@@ -347,6 +373,28 @@ function RaindropFxCanvas({
       canvas.width = width;
       canvas.height = height;
       return { height, width };
+    };
+
+    const reportBenchmark = () => {
+      const canvas = canvasRef.current;
+      const handler = benchmarkRef.current;
+      const id = benchmarkIdRef.current;
+      if (!canvas || !handler || !id) {
+        benchmarkCaptureCount = 0;
+        benchmarkCaptureMs = 0;
+        return;
+      }
+
+      handler(id, {
+        canvasMp: (canvas.width * canvas.height) / 1_000_000,
+        captureHz: benchmarkCaptureCount / 0.8,
+        captureMs:
+          benchmarkCaptureCount > 0
+            ? benchmarkCaptureMs / benchmarkCaptureCount
+            : 0,
+      });
+      benchmarkCaptureCount = 0;
+      benchmarkCaptureMs = 0;
     };
 
     const start = async () => {
@@ -386,7 +434,10 @@ function RaindropFxCanvas({
         try {
           const setLiveBackground =
             effect.setLiveBackground ?? effect.setBackground;
+          const captureStartedAt = performance.now();
           await setLiveBackground?.call(effect, source);
+          benchmarkCaptureCount += 1;
+          benchmarkCaptureMs += performance.now() - captureStartedAt;
           return true;
         } catch (error) {
           if (!hasLoggedCaptureError) {
@@ -432,6 +483,7 @@ function RaindropFxCanvas({
         observer.observe(hostRef.current);
       }
       effect.resize(width, height);
+      benchmarkInterval = window.setInterval(reportBenchmark, 800);
     };
 
     void start();
@@ -439,6 +491,7 @@ function RaindropFxCanvas({
     return () => {
       cancelled = true;
       window.clearInterval(captureInterval);
+      window.clearInterval(benchmarkInterval);
       captureTimeouts.forEach((timeout) => window.clearTimeout(timeout));
       observer?.disconnect();
       effect?.destroy?.();

@@ -13,6 +13,20 @@ export type BackgroundMode = "demo" | "street";
 export type RenderQuality = "balanced" | "cinematic";
 export type TimeOfDay = "morning" | "midday" | "dusk" | "night";
 
+export type RainWindowBenchmarkStats = {
+  drawCalls: number;
+  dropCount: number;
+  fps: number;
+  frameMs: number;
+  geometries: number;
+  nativeGlass: boolean;
+  rainMapMp: number;
+  renderMs: number;
+  targetMp: number;
+  textures: number;
+  triangles: number;
+};
+
 type Car = {
   group: THREE.Group;
   baseSpeed: number;
@@ -418,15 +432,19 @@ void main() {
 `;
 
 export function RainWindow({
+  benchmarkId,
   backgroundMode,
   nativeGlass = true,
+  onBenchmark,
   paused,
   quality,
   rainVisibility,
   timeOfDay,
 }: {
+  benchmarkId?: string;
   backgroundMode: BackgroundMode;
   nativeGlass?: boolean;
+  onBenchmark?: (id: string, stats: RainWindowBenchmarkStats) => void;
   paused: boolean;
   quality: RenderQuality;
   rainVisibility: number;
@@ -435,6 +453,8 @@ export function RainWindow({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const pausedRef = useRef(paused);
   const rainVisibilityRef = useRef(rainVisibility);
+  const benchmarkIdRef = useRef(benchmarkId);
+  const benchmarkRef = useRef(onBenchmark);
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -443,6 +463,11 @@ export function RainWindow({
   useEffect(() => {
     rainVisibilityRef.current = rainVisibility;
   }, [rainVisibility]);
+
+  useEffect(() => {
+    benchmarkIdRef.current = benchmarkId;
+    benchmarkRef.current = onBenchmark;
+  }, [benchmarkId, onBenchmark]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -466,6 +491,7 @@ export function RainWindow({
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = profile.exposure;
+    renderer.info.autoReset = false;
     renderer.domElement.className = "street-canvas";
     host.appendChild(renderer.domElement);
 
@@ -847,8 +873,15 @@ export function RainWindow({
 
     const clock = new THREE.Clock();
     let animationId = 0;
+    let benchmarkFrameMs = 0;
+    let benchmarkFrames = 0;
+    let benchmarkLastFrameAt = performance.now();
+    let benchmarkLastReportAt = performance.now();
+    let benchmarkRenderMs = 0;
     let rainMapHeight = 1;
     let sceneTime = 0;
+    let targetMegapixels = 0;
+    let rainMapMegapixels = 0;
     const dropPosition = new THREE.Vector3();
     const dropQuaternion = new THREE.Quaternion();
     const dropScale = new THREE.Vector3();
@@ -868,6 +901,8 @@ export function RainWindow({
       const targetHeight = Math.max(1, Math.floor(safeHeight * pixelRatio));
       const rainWidth = Math.max(1, Math.floor(targetWidth * settings.raindropMapScale));
       const rainHeight = Math.max(1, Math.floor(targetHeight * settings.raindropMapScale));
+      targetMegapixels = (targetWidth * targetHeight) / 1_000_000;
+      rainMapMegapixels = (rainWidth * rainHeight) / 1_000_000;
 
       target.setSize(targetWidth, targetHeight);
       const glareWidth = Math.max(1, Math.floor(targetWidth * 0.52));
@@ -1029,8 +1064,48 @@ export function RainWindow({
       renderPostMaterial(pyramidBlurMaterial, destination);
     };
 
+    const reportBenchmark = (renderMs: number, frameMs: number) => {
+      const handler = benchmarkRef.current;
+      const id = benchmarkIdRef.current;
+      if (!handler || !id) {
+        return;
+      }
+
+      benchmarkFrames += 1;
+      benchmarkFrameMs += frameMs;
+      benchmarkRenderMs += renderMs;
+
+      const now = performance.now();
+      if (now - benchmarkLastReportAt < 700 || benchmarkFrames === 0) {
+        return;
+      }
+
+      handler(id, {
+        drawCalls: renderer.info.render.calls,
+        dropCount: nativeGlass ? dropMesh.count : 0,
+        fps: 1000 / Math.max(1, benchmarkFrameMs / benchmarkFrames),
+        frameMs: benchmarkFrameMs / benchmarkFrames,
+        geometries: renderer.info.memory.geometries,
+        nativeGlass,
+        rainMapMp: rainMapMegapixels,
+        renderMs: benchmarkRenderMs / benchmarkFrames,
+        targetMp: targetMegapixels,
+        textures: renderer.info.memory.textures,
+        triangles: renderer.info.render.triangles,
+      });
+
+      benchmarkFrameMs = 0;
+      benchmarkFrames = 0;
+      benchmarkLastReportAt = now;
+      benchmarkRenderMs = 0;
+    };
+
     const animate = () => {
       animationId = window.requestAnimationFrame(animate);
+      const frameStartedAt = performance.now();
+      const frameMs = frameStartedAt - benchmarkLastFrameAt;
+      benchmarkLastFrameAt = frameStartedAt;
+      renderer.info.reset();
       const rawDelta = Math.min(clock.getDelta(), 0.04);
       const delta = pausedRef.current ? 0 : rawDelta * (reducedMotion ? 0.28 : 1);
       const rainDelta = nativeGlass && delta > 0 ? 0.03 : 0;
@@ -1060,6 +1135,7 @@ export function RainWindow({
       }
 
       if (!nativeGlass) {
+        reportBenchmark(performance.now() - frameStartedAt, frameMs);
         return;
       }
 
@@ -1098,6 +1174,7 @@ export function RainWindow({
       glassMaterial.uniforms.uRainVisibility.value = rainVisibilityRef.current;
       renderer.setRenderTarget(null);
       renderer.render(screenScene, screenCamera);
+      reportBenchmark(performance.now() - frameStartedAt, frameMs);
     };
 
     animate();
