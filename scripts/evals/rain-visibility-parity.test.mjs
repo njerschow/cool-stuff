@@ -125,7 +125,11 @@ test("native shader exposes the same overlay curve as uniforms", async () => {
   assert.match(source, /uniform float uRainOverlayOpacityScale;/);
   assert.match(
     source,
-    /vec3 color = mix\(sceneColor, rainColor, overlayOpacity\);/
+    /float overlayOpacity = uRainOverlayOpacityBase \+ normalizedVisibility \* uRainOverlayOpacityScale;/
+  );
+  assert.match(
+    source,
+    /vec3 color = mix\(sceneColor, rainColor, localOverlayOpacity\);/
   );
   assert.doesNotMatch(source, /0\.72 \+ normalizedVisibility \* 0\.22/);
   assert.doesNotMatch(source, /overlayOpacity \* mix\(1\.0, 0\.82, mask\)/);

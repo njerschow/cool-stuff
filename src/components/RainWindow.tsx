@@ -206,7 +206,7 @@ uniform sampler2D uFrost;
 uniform sampler2D uGlare;
 uniform sampler2D uMistBackground;
 uniform sampler2D uMistTex;
-uniform sampler2D uTrailEraseMap;
+uniform sampler2D uClearChannelMap;
 uniform float uRainVisibility;
 uniform float uRainVisibilityMin;
 uniform float uRainVisibilityRange;
@@ -240,12 +240,13 @@ void main() {
   float specular = pow(max(dot(normal, halfDir), 0.0), 256.0);
 
   vec3 glare = texture2D(uGlare, uv).rgb;
-  vec3 sceneColor = deepenPaneBase(texture2D(uScene, uv).rgb) + glare * 0.18;
+  vec3 sharpScene = deepenPaneBase(texture2D(uScene, uv).rgb);
+  vec3 sceneColor = sharpScene + glare * 0.18;
   vec3 background = deepenPaneBase(texture2D(uFrost, uv).rgb);
   vec3 mistBackground = deepenPaneBase(texture2D(uMistBackground, uv).rgb) + vec3(0.0015, 0.002, 0.0025);
   float mistValue = texture2D(uMistTex, uv).r;
-  float clearChannel = smoothstep(0.08, 0.54, texture2D(uTrailEraseMap, uv).a);
-  float mistAlpha = clamp(mistValue * 0.25 + trailVeil * 0.08 - clearChannel * 0.32, 0.0, 0.46);
+  float clearChannel = smoothstep(0.05, 0.36, texture2D(uClearChannelMap, uv).r);
+  float mistAlpha = clamp(mistValue * (0.32 - clearChannel * 0.29) + trailVeil * 0.1 - clearChannel * 0.1, 0.0, 0.52);
   vec3 baseColor = mix(background, mistBackground, mistAlpha);
   vec3 dropColor = deepenPaneBase(texture2D(uFrost, refractUv).rgb);
   float lensContrast = 1.32 + mask * 0.28 + splotchMask * 0.16;
@@ -256,12 +257,14 @@ void main() {
   vec3 rainColor = mix(baseColor, dropColor, dropMask);
   vec3 trailColor = mix(baseColor, dropColor, 0.32) * (1.0 - trailVeil * 0.18);
   rainColor = mix(rainColor, trailColor, trailVeil * 0.18);
-  vec3 clearChannelColor = background * (1.0 - clearChannel * 0.055) + glare * 0.18;
-  rainColor = mix(rainColor, clearChannelColor, clearChannel * (0.26 + mistValue * 0.28));
+  vec3 clearChannelColor = mix(background, sharpScene, 0.84) + glare * 0.24;
+  rainColor = mix(rainColor, clearChannelColor, clearChannel * (0.46 + mistValue * 0.34));
   rainColor += glare * (0.46 + mask * 0.28 + trailVeil * 0.12);
   float normalizedVisibility = clamp((uRainVisibility - uRainVisibilityMin) / uRainVisibilityRange, 0.0, 1.0);
   float overlayOpacity = uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale;
-  vec3 color = mix(sceneColor, rainColor, overlayOpacity);
+  float clearReveal = clearChannel * (1.0 - dropMask * 0.78);
+  float localOverlayOpacity = overlayOpacity * (1.0 - clearReveal * 0.62);
+  vec3 color = mix(sceneColor, rainColor, localOverlayOpacity);
   color += glare * (0.12 + normalizedVisibility * 0.1);
 
   gl_FragColor = vec4(color.rgb, 1.0);
@@ -346,6 +349,7 @@ void main() {
 
 const mistEraseFragmentShader = `
 uniform sampler2D uRainMap;
+uniform sampler2D uClearChannelMap;
 uniform sampler2D uTrailEraseMap;
 uniform vec2 uClearTexelSize;
 uniform vec2 uEraserSmooth;
@@ -363,12 +367,27 @@ void main() {
   trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(px.x * 2.0, 0.0), 0.68));
   trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(-px.x * 2.0, 0.0), 0.68));
   float sweepAlpha = texture2D(uTrailEraseMap, vUv).a;
+  sweepAlpha = max(sweepAlpha, texture2D(uClearChannelMap, vUv).r * 0.98);
   sweepAlpha = max(sweepAlpha, texture2D(uTrailEraseMap, clamp(vUv + vec2(px.x * 1.5, 0.0), 0.0, 1.0)).a * 0.82);
   sweepAlpha = max(sweepAlpha, texture2D(uTrailEraseMap, clamp(vUv + vec2(-px.x * 1.5, 0.0), 0.0, 1.0)).a * 0.82);
   trailAlpha = max(trailAlpha, sweepAlpha);
   float mask = smoothstep(uEraserSmooth.x, uEraserSmooth.y, trailAlpha);
   mask = min(mask * 1.18, 1.0);
   gl_FragColor = vec4(0.0, 0.0, 0.0, mask);
+}
+`;
+
+const clearChannelHistoryFragmentShader = `
+uniform sampler2D uHistoryMap;
+uniform sampler2D uTrailEraseMap;
+uniform float uDecay;
+varying vec2 vUv;
+
+void main() {
+  float history = texture2D(uHistoryMap, vUv).r * uDecay;
+  float trail = texture2D(uTrailEraseMap, vUv).a;
+  float clear = max(history, trail);
+  gl_FragColor = vec4(vec3(clear), clear);
 }
 `;
 
@@ -637,6 +656,24 @@ export function RainWindow({
     trailEraseTarget.texture.magFilter = THREE.LinearFilter;
     trailEraseTarget.texture.minFilter = THREE.LinearFilter;
 
+    const clearChannelTargetA = new THREE.WebGLRenderTarget(1, 1, {
+      depthBuffer: false,
+      stencilBuffer: false,
+    });
+    clearChannelTargetA.texture.colorSpace = THREE.NoColorSpace;
+    clearChannelTargetA.texture.generateMipmaps = false;
+    clearChannelTargetA.texture.magFilter = THREE.LinearFilter;
+    clearChannelTargetA.texture.minFilter = THREE.LinearFilter;
+
+    const clearChannelTargetB = new THREE.WebGLRenderTarget(1, 1, {
+      depthBuffer: false,
+      stencilBuffer: false,
+    });
+    clearChannelTargetB.texture.colorSpace = THREE.NoColorSpace;
+    clearChannelTargetB.texture.generateMipmaps = false;
+    clearChannelTargetB.texture.magFilter = THREE.LinearFilter;
+    clearChannelTargetB.texture.minFilter = THREE.LinearFilter;
+
     const mistTarget = new THREE.WebGLRenderTarget(1, 1, {
       depthBuffer: false,
       stencilBuffer: false,
@@ -720,7 +757,7 @@ export function RainWindow({
         uRainVisibilityMin: { value: RAIN_VISIBILITY_SLIDER.min },
         uRainVisibilityRange: { value: RAIN_VISIBILITY_RANGE },
         uScene: { value: target.texture },
-        uTrailEraseMap: { value: trailEraseTarget.texture },
+        uClearChannelMap: { value: clearChannelTargetA.texture },
       },
       vertexShader: glassVertexShader,
     });
@@ -757,6 +794,18 @@ export function RainWindow({
       toneMapped: false,
       uniforms: {
         uScene: { value: target.texture },
+      },
+      vertexShader: glassVertexShader,
+    });
+    const clearChannelHistoryMaterial = new THREE.ShaderMaterial({
+      depthTest: false,
+      depthWrite: false,
+      fragmentShader: clearChannelHistoryFragmentShader,
+      toneMapped: false,
+      uniforms: {
+        uDecay: { value: 1 },
+        uHistoryMap: { value: clearChannelTargetA.texture },
+        uTrailEraseMap: { value: trailEraseTarget.texture },
       },
       vertexShader: glassVertexShader,
     });
@@ -825,6 +874,7 @@ export function RainWindow({
       uniforms: {
         uClearTexelSize: { value: new THREE.Vector2(1, 1) },
         uEraserSmooth: { value: new THREE.Vector2(0.58, 0.92) },
+        uClearChannelMap: { value: clearChannelTargetA.texture },
         uRainMap: { value: raindropTarget.texture },
         uTrailEraseMap: { value: trailEraseTarget.texture },
       },
@@ -968,6 +1018,8 @@ export function RainWindow({
     let benchmarkLastFrameAt = performance.now();
     let benchmarkLastReportAt = performance.now();
     let benchmarkRenderMs = 0;
+    let clearChannelReadTarget = clearChannelTargetA;
+    let clearChannelWriteTarget = clearChannelTargetB;
     let rainMapHeight = 1;
     let sceneTime = 0;
     let targetMegapixels = 0;
@@ -1017,6 +1069,8 @@ export function RainWindow({
       mistBackgroundTargetB.setSize(rainWidth, rainHeight);
       raindropTarget.setSize(rainWidth, rainHeight);
       trailEraseTarget.setSize(rainWidth, rainHeight);
+      clearChannelTargetA.setSize(rainWidth, rainHeight);
+      clearChannelTargetB.setSize(rainWidth, rainHeight);
       mistTarget.setSize(rainWidth, rainHeight);
       dropletTarget.setSize(rainWidth, rainHeight);
       mistEraseMaterial.uniforms.uClearTexelSize.value.set(
@@ -1032,6 +1086,16 @@ export function RainWindow({
       renderer.setRenderTarget(trailEraseTarget);
       renderer.setClearColor(0x000000, 0);
       renderer.clear(true, true, true);
+      renderer.setRenderTarget(clearChannelTargetA);
+      renderer.setClearColor(0x000000, 0);
+      renderer.clear(true, true, true);
+      renderer.setRenderTarget(clearChannelTargetB);
+      renderer.setClearColor(0x000000, 0);
+      renderer.clear(true, true, true);
+      clearChannelReadTarget = clearChannelTargetA;
+      clearChannelWriteTarget = clearChannelTargetB;
+      glassMaterial.uniforms.uClearChannelMap.value = clearChannelReadTarget.texture;
+      mistEraseMaterial.uniforms.uClearChannelMap.value = clearChannelReadTarget.texture;
       renderer.setRenderTarget(null);
       paneSimulation.resize(rainWidth, rainHeight);
       rainMapHeight = rainHeight;
@@ -1124,6 +1188,26 @@ export function RainWindow({
       glareQuad.material = material;
       renderer.setRenderTarget(destination);
       renderer.render(glareScene, screenCamera);
+    };
+
+    const updateClearChannelHistory = (decayDelta: number) => {
+      clearChannelHistoryMaterial.uniforms.uDecay.value = Math.exp(
+        -decayDelta / 4.2
+      );
+      clearChannelHistoryMaterial.uniforms.uHistoryMap.value =
+        clearChannelReadTarget.texture;
+      clearChannelHistoryMaterial.uniforms.uTrailEraseMap.value =
+        trailEraseTarget.texture;
+
+      renderPostMaterial(clearChannelHistoryMaterial, clearChannelWriteTarget);
+
+      const previousReadTarget = clearChannelReadTarget;
+      clearChannelReadTarget = clearChannelWriteTarget;
+      clearChannelWriteTarget = previousReadTarget;
+      glassMaterial.uniforms.uClearChannelMap.value =
+        clearChannelReadTarget.texture;
+      mistEraseMaterial.uniforms.uClearChannelMap.value =
+        clearChannelReadTarget.texture;
     };
 
     const copyToGlassTarget = () => {
@@ -1229,7 +1313,8 @@ export function RainWindow({
       renderer.info.reset();
       const rawDelta = Math.min(clock.getDelta(), 0.04);
       const delta = pausedRef.current ? 0 : rawDelta * (reducedMotion ? 0.28 : 1);
-      const rainDelta = nativeGlass && delta > 0 ? 0.03 : 0;
+      const rainDelta =
+        nativeGlass && delta > 0 ? Math.min(delta * 1.65, 0.05) : 0;
       sceneTime += delta;
 
       if (rainDelta > 0) {
@@ -1290,6 +1375,7 @@ export function RainWindow({
       }
       renderer.setRenderTarget(raindropTarget);
       renderer.render(dropScene, dropCamera);
+      updateClearChannelHistory(delta);
       if (rainDelta > 0 || dropMesh.count > 0 || trailEraseCount > 0) {
         mistQuad.material = mistEraseMaterial;
         renderer.setRenderTarget(mistTarget);
@@ -1320,6 +1406,8 @@ export function RainWindow({
       blurTargets.forEach((blurTarget) => blurTarget.dispose());
       raindropTarget.dispose();
       trailEraseTarget.dispose();
+      clearChannelTargetA.dispose();
+      clearChannelTargetB.dispose();
       mistTarget.dispose();
       dropletTarget.dispose();
       demoTexture.dispose();
@@ -1330,6 +1418,7 @@ export function RainWindow({
       glassMaterial.dispose();
       copyMaterial.dispose();
       pyramidBlurMaterial.dispose();
+      clearChannelHistoryMaterial.dispose();
       glareQuad.geometry.dispose();
       glareExtractMaterial.dispose();
       glareBlurMaterial.dispose();
