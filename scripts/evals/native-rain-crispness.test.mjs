@@ -112,3 +112,18 @@ test("native glass mixes realtime background glare into the pane", async () => {
   assert.match(source, /float brightMask = smoothstep\(0\.28, 0\.98, luma\);/);
   assert.match(source, /rainColor \+= glare \* \(0\.46 \+ mask \* 0\.28 \+ trailVeil \* 0\.12\);/);
 });
+
+test("street cars keep head and tail lights on the correct local ends", async () => {
+  const source = await rainWindowSource();
+
+  assert.match(source, /const lightMat = new THREE\.MeshBasicMaterial\(\{\n    color: 0xf8fbff,/);
+  assert.match(source, /const reflectionMat = new THREE\.MeshBasicMaterial\(\{\n    blending: THREE\.AdditiveBlending,\n    color: 0xf6fbff,/);
+  assert.match(source, /const tailReflectionMat = new THREE\.MeshBasicMaterial\(\{\n    blending: THREE\.AdditiveBlending,\n    color: 0xff2636,/);
+  assert.match(source, /head\.position\.set\(1\.08, 0\.42, z\);/);
+  assert.match(source, /reflection\.position\.set\(1\.64, 0\.028, z\);/);
+  assert.match(source, /tail\.position\.set\(-1\.08, 0\.42, z\);/);
+  assert.match(source, /tailReflection\.position\.set\(-1\.42, 0\.03, z\);/);
+  assert.match(source, /group\.rotation\.y = config\.direction === 1 \? -Math\.PI \/ 2 : Math\.PI \/ 2;/);
+  assert.doesNotMatch(source, /head\.position\.set\(config\.direction \*/);
+  assert.doesNotMatch(source, /tail\.position\.set\(config\.direction \*/);
+});

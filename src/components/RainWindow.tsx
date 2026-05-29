@@ -1669,14 +1669,14 @@ function createCar(
     transparent: true,
   });
   const lightMat = new THREE.MeshBasicMaterial({
-    color: 0xfff0b5,
+    color: 0xf8fbff,
     opacity: 1,
     toneMapped: false,
     transparent: true,
   });
   const reflectionMat = new THREE.MeshBasicMaterial({
     blending: THREE.AdditiveBlending,
-    color: 0xffe7b0,
+    color: 0xf6fbff,
     depthWrite: false,
     opacity: 0.24,
     side: THREE.DoubleSide,
@@ -1689,12 +1689,22 @@ function createCar(
     toneMapped: false,
     transparent: true,
   });
+  const tailReflectionMat = new THREE.MeshBasicMaterial({
+    blending: THREE.AdditiveBlending,
+    color: 0xff2636,
+    depthWrite: false,
+    opacity: 0.18,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+    transparent: true,
+  });
   const fadeMaterials = [
     { material: bodyMat, opacity: 1 },
     { material: cabinMat, opacity: 1 },
     { material: lightMat, opacity: 1 },
     { material: reflectionMat, opacity: 0.24 },
     { material: tailMat, opacity: 1 },
+    { material: tailReflectionMat, opacity: 0.18 },
   ];
 
   const body = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.42, 0.9), bodyMat);
@@ -1707,18 +1717,27 @@ function createCar(
 
   for (const z of [-0.32, 0.32]) {
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.18), lightMat);
-    head.position.set(config.direction * 1.08, 0.42, z);
+    head.position.set(1.08, 0.42, z);
     group.add(head);
 
     const reflection = new THREE.Mesh(new THREE.CircleGeometry(1, 24), reflectionMat);
-    reflection.position.set(config.direction * 1.64, 0.028, z);
+    reflection.position.set(1.64, 0.028, z);
     reflection.rotation.x = -Math.PI / 2;
     reflection.scale.set(1.15, 0.18, 1);
     group.add(reflection);
 
     const tail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.075, 0.16), tailMat);
-    tail.position.set(config.direction * -1.08, 0.42, z);
+    tail.position.set(-1.08, 0.42, z);
     group.add(tail);
+
+    const tailReflection = new THREE.Mesh(
+      new THREE.CircleGeometry(0.72, 20),
+      tailReflectionMat
+    );
+    tailReflection.position.set(-1.42, 0.03, z);
+    tailReflection.rotation.x = -Math.PI / 2;
+    tailReflection.scale.set(0.74, 0.13, 1);
+    group.add(tailReflection);
   }
 
   group.rotation.y = config.direction === 1 ? -Math.PI / 2 : Math.PI / 2;
