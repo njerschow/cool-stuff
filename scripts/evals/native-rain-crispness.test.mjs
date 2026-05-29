@@ -63,7 +63,9 @@ test("falling drops keep visible wet residue trails", async () => {
   assert.match(source, /trailDropSize: \[0\.22, 0\.42\],/);
   assert.match(source, /trailSpread: 0\.98,/);
   assert.match(source, /float mistValue = texture2D\(uMistTex, uv\)\.r;/);
-  assert.match(source, /float clearChannel = smoothstep\(0\.04, 0\.32, texture2D\(uClearChannelMap, uv\)\.r\);/);
+  assert.match(source, /float rawClearChannel = smoothstep\(0\.04, 0\.32, texture2D\(uClearChannelMap, uv\)\.r\);/);
+  assert.match(source, /float remist = smoothstep\(0\.48, 0\.92, mistValue\);/);
+  assert.match(source, /float clearChannel = rawClearChannel \* \(1\.0 - remist \* 0\.48\);/);
   assert.match(source, /float mistAlpha = clamp\(mistValue \* \(0\.52 - clearChannel \* 0\.28\) \+ trailVeil \* 0\.15 - clearChannel \* 0\.018, 0\.0, 0\.78\);/);
   assert.match(source, /rainColor = mix\(rainColor, trailColor, trailVeil \* 0\.18\);/);
   assert.match(source, /vec3 clearChannelColor = mix\(background, sharpScene, 0\.82\) \+ glare \* 0\.23;/);
@@ -95,7 +97,11 @@ test("falling drops keep visible wet residue trails", async () => {
   assert.match(source, /updateClearChannelHistory\(delta\);/);
   assert.match(source, /const rainDelta =\n        nativeGlass && delta > 0 \? Math\.min\(delta \* 1\.65, 0\.05\) : 0;/);
   assert.match(source, /trailAlpha = max\(trailAlpha, sampleRainAlpha\(vec2\(0\.0, -px\.y \* 4\.5\), 0\.94\)\);/);
-  assert.match(source, /mask = min\(mask \* 0\.86, 0\.86\);/);
+  assert.match(source, /float sweepAlpha = texture2D\(uTrailEraseMap, vUv\)\.a;/);
+  assert.match(source, /dropMask = min\(dropMask \* 0\.86, 0\.86\);/);
+  assert.match(source, /float streakMask = smoothstep\(0\.18, 0\.72, sweepAlpha\) \* 0\.54;/);
+  assert.match(source, /float mask = max\(dropMask, streakMask\);/);
+  assert.match(source, /float fade = smoothstep\(0\.02, 0\.32, vStrength\);/);
   assert.match(source, /renderer\.setClearColor\(0x858585, 0\.52\);/);
   assert.match(source, /mistAddMaterial\.uniforms\.uAmount\.value = rainDelta \/ 5\.1;/);
   assert.match(source, /-decayDelta \/ 2\.9/);

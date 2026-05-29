@@ -251,7 +251,9 @@ void main() {
   vec3 background = deepenPaneBase(texture2D(uFrost, uv).rgb);
   vec3 mistBackground = deepenPaneBase(texture2D(uMistBackground, uv).rgb) + vec3(0.0015, 0.002, 0.0025);
   float mistValue = texture2D(uMistTex, uv).r;
-  float clearChannel = smoothstep(0.04, 0.32, texture2D(uClearChannelMap, uv).r);
+  float rawClearChannel = smoothstep(0.04, 0.32, texture2D(uClearChannelMap, uv).r);
+  float remist = smoothstep(0.48, 0.92, mistValue);
+  float clearChannel = rawClearChannel * (1.0 - remist * 0.48);
   float mistAlpha = clamp(mistValue * (0.52 - clearChannel * 0.28) + trailVeil * 0.15 - clearChannel * 0.018, 0.0, 0.78);
   vec3 baseColor = mix(background, mistBackground, mistAlpha);
   vec3 dropColor = deepenPaneBase(texture2D(uFrost, refractUv).rgb);
@@ -356,6 +358,7 @@ void main() {
 const mistEraseFragmentShader = `
 uniform sampler2D uRainMap;
 uniform sampler2D uClearChannelMap;
+uniform sampler2D uTrailEraseMap;
 uniform vec2 uClearTexelSize;
 uniform vec2 uEraserSmooth;
 varying vec2 vUv;
@@ -371,8 +374,13 @@ void main() {
   trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(0.0, -px.y * 4.5), 0.94));
   trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(px.x * 2.0, 0.0), 0.68));
   trailAlpha = max(trailAlpha, sampleRainAlpha(vec2(-px.x * 2.0, 0.0), 0.68));
-  float mask = smoothstep(uEraserSmooth.x, uEraserSmooth.y, trailAlpha);
-  mask = min(mask * 0.86, 0.86);
+  float sweepAlpha = texture2D(uTrailEraseMap, vUv).a;
+  sweepAlpha = max(sweepAlpha, texture2D(uTrailEraseMap, clamp(vUv + vec2(px.x * 1.5, 0.0), 0.0, 1.0)).a * 0.82);
+  sweepAlpha = max(sweepAlpha, texture2D(uTrailEraseMap, clamp(vUv + vec2(-px.x * 1.5, 0.0), 0.0, 1.0)).a * 0.82);
+  float dropMask = smoothstep(uEraserSmooth.x, uEraserSmooth.y, trailAlpha);
+  dropMask = min(dropMask * 0.86, 0.86);
+  float streakMask = smoothstep(0.18, 0.72, sweepAlpha) * 0.54;
+  float mask = max(dropMask, streakMask);
   gl_FragColor = vec4(0.0, 0.0, 0.0, mask);
 }
 `;
@@ -468,7 +476,8 @@ void main() {
   float softColumn = 1.0 - smoothstep(0.28, 0.5, p.x);
   float wetCenter = 1.0 - smoothstep(0.08, 0.36, p.x);
   float longBody = 1.0 - smoothstep(0.47, 0.5, p.y);
-  float alpha = min(max(softColumn * longBody, wetCenter * 0.42) * (0.95 + vStrength * 0.35), 1.0);
+  float fade = smoothstep(0.02, 0.32, vStrength);
+  float alpha = min(max(softColumn * longBody, wetCenter * 0.42) * fade * (0.76 + vStrength * 0.56), 1.0);
   gl_FragColor = vec4(0.0, 0.0, 0.0, alpha);
 }
 `;
@@ -483,7 +492,8 @@ void main() {
   float edgeFalloff = 1.0 - smoothstep(0.31, 0.5, p.x);
   float centerWater = 1.0 - smoothstep(0.06, 0.32, p.x);
   float taper = 1.0 - smoothstep(0.44, 0.5, p.y);
-  float alpha = clamp((edgeFalloff * 0.52 + centerWater * 0.24) * taper * (0.88 + vStrength * 0.38), 0.0, 0.8);
+  float fade = smoothstep(0.02, 0.32, vStrength);
+  float alpha = clamp((edgeFalloff * 0.52 + centerWater * 0.24) * taper * fade * (0.78 + vStrength * 0.42), 0.0, 0.8);
   float ribble = sin((vUv.y + vUv.x * 0.2) * 38.0) * 0.018;
   vec2 normal = vec2(0.5 + centered.x * 0.62 + ribble, 0.5 - centered.y * 0.09);
   float depth = (0.22 + centerWater * 0.28 + edgeFalloff * 0.1) * alpha;
@@ -904,6 +914,7 @@ export function RainWindow({
         uEraserSmooth: { value: new THREE.Vector2(0.48, 0.86) },
         uClearChannelMap: { value: clearChannelTargetA.texture },
         uRainMap: { value: raindropTarget.texture },
+        uTrailEraseMap: { value: trailEraseTarget.texture },
       },
       vertexShader: glassVertexShader,
     });
