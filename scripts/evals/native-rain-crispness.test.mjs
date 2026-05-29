@@ -46,66 +46,43 @@ test("native raindrops render slightly larger water lenses", async () => {
   assert.match(source, /const size = 8 \+ Math\.random\(\) \* 17;/);
 });
 
-test("falling drops keep visible wet residue trails", async () => {
+test("falling streaks use the RaindropFX mist-erasure loop", async () => {
   const source = await rainWindowSource();
   const simulation = await readFile(
     path.join(root, "src/simulation/RaindropPaneSimulation.ts"),
     "utf8"
   );
 
-  assert.match(source, /uniform sampler2D uResidueMap;/);
-  assert.match(source, /vec4 residueMap = texture2D\(uResidueMap, uv\);/);
-  assert.match(source, /vec4 dropletLayer = vec4\(/);
-  assert.match(source, /max\(dropletMap\.a, residueMap\.a\)/);
+  assert.doesNotMatch(source, /uniform sampler2D uResidueMap;/);
+  assert.doesNotMatch(source, /uniform sampler2D uClearChannelMap;/);
+  assert.doesNotMatch(source, /const residueTarget = new THREE\.WebGLRenderTarget/);
+  assert.doesNotMatch(source, /const trailEraseTarget = new THREE\.WebGLRenderTarget/);
+  assert.doesNotMatch(source, /const clearChannelTargetA = new THREE\.WebGLRenderTarget/);
+  assert.doesNotMatch(source, /clearChannelHistoryFragmentShader/);
+  assert.match(source, /vec4 compose = vec4\(\n    raindrop\.rgb \+ dropletMap\.rgb - vec3\(2\.0\) \* raindrop\.rgb \* dropletMap\.rgb,\n    max\(dropletMap\.a, raindrop\.a\)\n  \);/);
   assert.match(source, /float trailVeil = smoothstep\(0\.38, 0\.78, compose\.a\)/);
   assert.match(source, /trailDistance: \[9, 16\],/);
   assert.match(source, /trailDropDensity: 0\.42,/);
   assert.match(source, /trailDropSize: \[0\.22, 0\.42\],/);
   assert.match(source, /trailSpread: 0\.98,/);
   assert.match(source, /float mistValue = texture2D\(uMistTex, uv\)\.r;/);
-  assert.match(source, /float rawClearChannel = smoothstep\(0\.04, 0\.32, texture2D\(uClearChannelMap, uv\)\.r\);/);
-  assert.match(source, /float remist = smoothstep\(0\.48, 0\.92, mistValue\);/);
-  assert.match(source, /float clearChannel = rawClearChannel \* \(1\.0 - remist \* 0\.48\);/);
-  assert.match(source, /float mistAlpha = clamp\(mistValue \* \(0\.52 - clearChannel \* 0\.28\) \+ trailVeil \* 0\.15 - clearChannel \* 0\.018, 0\.0, 0\.78\);/);
+  assert.match(source, /float mistAlpha = clamp\(mistValue \* 0\.62, 0\.0, 0\.78\);/);
   assert.match(source, /rainColor = mix\(rainColor, trailColor, trailVeil \* 0\.18\);/);
-  assert.match(source, /vec3 clearChannelColor = mix\(background, sharpScene, 0\.82\) \+ glare \* 0\.23;/);
-  assert.match(source, /rainColor = mix\(rainColor, clearChannelColor, clearChannel \* \(0\.44 \+ mistValue \* 0\.24\)\);/);
-  assert.match(source, /float localOverlayOpacity = overlayOpacity \* \(1\.0 - clearReveal \* 0\.55\);/);
-  assert.match(source, /uniform vec2 uClearTexelSize;/);
-  assert.match(source, /uEraserSmooth: \{ value: new THREE\.Vector2\(0\.48, 0\.86\) \},/);
-  assert.match(source, /uniform sampler2D uClearChannelMap;/);
-  assert.match(source, /uniform sampler2D uTrailEraseMap;/);
-  assert.match(source, /const trailEraseTarget = new THREE\.WebGLRenderTarget\(1, 1,/);
-  assert.match(source, /const residueTarget = new THREE\.WebGLRenderTarget\(1, 1,/);
-  assert.match(source, /const trailResidueFragmentShader = `/);
-  assert.match(source, /fragmentShader: trailResidueFragmentShader,/);
-  assert.match(source, /uResidueMap: \{ value: residueTarget\.texture \},/);
-  assert.match(source, /const clearChannelTargetA = new THREE\.WebGLRenderTarget\(1, 1,/);
-  assert.match(source, /const clearChannelTargetB = new THREE\.WebGLRenderTarget\(1, 1,/);
-  assert.match(source, /const clearChannelHistoryMaterial = new THREE\.ShaderMaterial\(\{/);
-  assert.match(source, /fragmentShader: clearChannelHistoryFragmentShader,/);
-  assert.match(source, /let clearChannelReadTarget = clearChannelTargetA;/);
-  assert.match(source, /let clearChannelWriteTarget = clearChannelTargetB;/);
-  assert.match(source, /uTrailEraseMap: \{ value: trailEraseTarget\.texture \},/);
-  assert.match(source, /uClearChannelMap: \{ value: clearChannelTargetA\.texture \},/);
+  assert.match(source, /float localOverlayOpacity = overlayOpacity;/);
+  assert.match(source, /const trailDropFragmentShader = `/);
+  assert.match(source, /fragmentShader: trailDropFragmentShader,/);
   assert.match(source, /const updateTrailEraseMesh = \(\) => \{/);
-  assert.match(source, /const updateClearChannelHistory = \(decayDelta: number\) => \{/);
-  assert.match(source, /renderPostMaterial\(clearChannelHistoryMaterial, clearChannelWriteTarget\);/);
-  assert.match(source, /renderer\.render\(trailEraseScene, dropCamera\);/);
-  assert.match(source, /renderer\.setRenderTarget\(residueTarget\);/);
-  assert.match(source, /trailEraseMesh\.material = trailResidueMaterial;/);
-  assert.match(source, /updateClearChannelHistory\(delta\);/);
+  assert.match(source, /const trails = paneSimulation\.activeRenderTrails;/);
+  assert.match(source, /renderer\.setRenderTarget\(raindropTarget\);\n      renderer\.setClearColor\(0x000000, 0\);\n      renderer\.clear\(true, true, true\);[\s\S]+renderer\.render\(trailEraseScene, dropCamera\);[\s\S]+renderer\.render\(dropScene, dropCamera\);/);
   assert.match(source, /const rainDelta =\n        nativeGlass && delta > 0 \? Math\.min\(delta \* 1\.65, 0\.05\) : 0;/);
-  assert.match(source, /trailAlpha = max\(trailAlpha, sampleRainAlpha\(vec2\(0\.0, -px\.y \* 4\.5\), 0\.94\)\);/);
-  assert.match(source, /float sweepAlpha = texture2D\(uTrailEraseMap, vUv\)\.a;/);
-  assert.match(source, /dropMask = min\(dropMask \* 0\.86, 0\.86\);/);
-  assert.match(source, /float streakMask = smoothstep\(0\.18, 0\.72, sweepAlpha\) \* 0\.54;/);
-  assert.match(source, /float mask = max\(dropMask, streakMask\);/);
+  assert.match(source, /const mistTarget = new THREE\.WebGLRenderTarget\(1, 1, \{\n      depthBuffer: false,\n      stencilBuffer: false,\n      type: THREE\.HalfFloatType,/);
+  assert.match(source, /uEraserSmooth: \{ value: new THREE\.Vector2\(0\.58, 0\.94\) \},/);
+  assert.match(source, /float mask = smoothstep\(uEraserSmooth\.x, uEraserSmooth\.y, texture2D\(uRainMap, vUv\)\.a\);/);
   assert.match(source, /float fade = smoothstep\(0\.02, 0\.32, vStrength\);/);
   assert.match(source, /renderer\.setClearColor\(0x858585, 0\.52\);/);
-  assert.match(source, /mistAddMaterial\.uniforms\.uAmount\.value = rainDelta \/ 5\.1;/);
-  assert.match(source, /-decayDelta \/ 2\.9/);
-  assert.doesNotMatch(source, /texture2D\(uClearChannelMap, vUv\)\.r \* 0\.98/);
+  assert.match(source, /mistAddMaterial\.uniforms\.uAmount\.value = rainDelta \/ 16\.5;/);
+  assert.doesNotMatch(source, /texture2D\(uTrailEraseMap/);
+  assert.doesNotMatch(source, /clearChannelColor/);
   assert.match(simulation, /export type RenderTrail = \{/);
   assert.match(simulation, /type PaneTrail = RenderTrail & \{/);
   assert.match(simulation, /previousX: number;/);
@@ -114,6 +91,8 @@ test("falling drops keep visible wet residue trails", async () => {
   assert.match(simulation, /this\.addTrailSegment\(drop\);/);
   assert.match(simulation, /private updateTrails\(delta: number\) \{/);
   assert.match(simulation, /get renderTrails\(\): RenderTrail\[\] \{/);
+  assert.match(simulation, /get activeRenderTrails\(\): RenderTrail\[\] \{/);
+  assert.match(simulation, /private getMovingTrails\(\): RenderTrail\[\] \{/);
   assert.match(simulation, /drop\.previousX = drop\.x;/);
 });
 

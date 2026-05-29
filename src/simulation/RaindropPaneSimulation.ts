@@ -164,7 +164,15 @@ export class RaindropPaneSimulation {
       };
     });
 
-    const movingTrails = this.drops
+    return residueTrails.concat(this.getMovingTrails());
+  }
+
+  get activeRenderTrails(): RenderTrail[] {
+    return this.getMovingTrails();
+  }
+
+  private getMovingTrails(): RenderTrail[] {
+    return this.drops
       .filter((drop) => !drop.destroyed)
       .flatMap((drop) => {
         const motionDx = drop.x - drop.previousX;
@@ -199,8 +207,6 @@ export class RaindropPaneSimulation {
           },
         ];
       });
-
-    return residueTrails.concat(movingTrails);
   }
 
   resize(width: number, height: number) {
