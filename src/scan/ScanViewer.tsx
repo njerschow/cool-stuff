@@ -33,7 +33,6 @@ type Engine = {
   controls: OrbitControls;
   grid: THREE.GridHelper;
   loader: GLTFLoader;
-  fadeAlpha: THREE.Texture;
   current: THREE.Object3D | null;
   groundMesh: THREE.Mesh | null;
   sample: FloorSample | null;
@@ -54,30 +53,6 @@ function modelBox(object: THREE.Object3D): THREE.Box3 {
     }
   });
   return box;
-}
-
-/** Radial white→transparent alpha so the big plane fades out at its edges. */
-function makeFadeAlpha(): THREE.Texture {
-  const size = 256;
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d")!;
-  const g = ctx.createRadialGradient(
-    size / 2,
-    size / 2,
-    size * 0.05,
-    size / 2,
-    size / 2,
-    size / 2
-  );
-  g.addColorStop(0, "rgba(255,255,255,1)");
-  g.addColorStop(0.55, "rgba(255,255,255,1)");
-  g.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, size, size);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.NoColorSpace;
-  return tex;
 }
 
 /**
@@ -189,6 +164,7 @@ function fitCamera(engine: Engine, object: THREE.Object3D) {
   const center = box.getCenter(new THREE.Vector3());
 
   object.position.sub(center);
+  object.updateMatrixWorld(true);
   const moved = modelBox(object);
   const maxDim = Math.max(size.x, size.y, size.z) || 1;
 
@@ -252,16 +228,16 @@ export function ScanViewer() {
       // "baked" lives inside the GLB; "off" shows nothing extra.
       if (mode === "off" || mode === "baked" || !engine.sample) return;
 
-      const span = Math.max(engine.modelSize * 14, 2);
+      const span = Math.max(engine.modelSize * 4, 1.5);
       const geo = new THREE.PlaneGeometry(span, span);
       geo.rotateX(-Math.PI / 2);
 
+      // Opaque, like the baked plane — a transparent plane lands in the same
+      // render pass as the (alpha-blended) capture mesh and paints over it.
       const material = new THREE.MeshStandardMaterial({
         roughness: 0.96,
         metalness: 0,
-        transparent: true,
-        alphaMap: engine.fadeAlpha,
-        depthWrite: false,
+        side: THREE.DoubleSide,
       });
       if (mode === "flat") {
         material.color = engine.sample.color;
@@ -280,7 +256,7 @@ export function ScanViewer() {
       const plane = new THREE.Mesh(geo, material);
       plane.name = "ground-scene";
       // Just under the disc floor so the real capture renders on top.
-      plane.position.y = engine.floorY - engine.modelSize * 0.004;
+      plane.position.y = engine.floorY - engine.modelSize * 0.02;
       plane.renderOrder = -1;
       engine.scene.add(plane);
       engine.groundMesh = plane;
@@ -439,7 +415,6 @@ export function ScanViewer() {
       controls,
       grid,
       loader: new GLTFLoader(),
-      fadeAlpha: makeFadeAlpha(),
       current: null,
       groundMesh: null,
       sample: null,
