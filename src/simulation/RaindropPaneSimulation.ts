@@ -192,9 +192,9 @@ export class RaindropPaneSimulation {
         const dy = useSegment ? segmentDy : motionDy;
         const fromX = useSegment ? drop.lastTrailX : drop.previousX;
         const fromY = useSegment ? drop.lastTrailY : drop.previousY;
-        const width = clamp(drop.sizeX * 0.24, 8, 26);
-        const length = distance + clamp(drop.sizeY * 0.58, 14, 50);
-        const strength = clamp(drop.sizeX / 82 + Math.abs(drop.velocityY) * 0.0011, 0.62, 1);
+        const width = clamp(drop.sizeX * 0.09, 3, 10);
+        const length = distance + clamp(drop.sizeY * 0.36, 10, 30);
+        const strength = clamp(drop.sizeX / 104 + Math.abs(drop.velocityY) * 0.00075, 0.38, 0.72);
 
         return [
           {
@@ -252,10 +252,10 @@ export class RaindropPaneSimulation {
     this.trails.push({
       age: 0,
       angle: Math.atan2(dy, dx) - Math.PI / 2,
-      length: distance + clamp(drop.sizeY * 0.75, 20, 64),
-      lifespan: rand(2, 4.2),
-      strength: clamp(drop.sizeX / 66 + Math.abs(drop.velocityY) * 0.0014, 0.72, 1),
-      width: clamp(drop.sizeX * 0.22, 8, 28),
+      length: distance + clamp(drop.sizeY * 0.36, 10, 30),
+      lifespan: rand(0.45, 1.05),
+      strength: clamp(drop.sizeX / 96 + Math.abs(drop.velocityY) * 0.0008, 0.4, 0.74),
+      width: clamp(drop.sizeX * 0.09, 3, 10),
       x: (drop.lastTrailX + drop.x) * 0.5,
       y: (drop.lastTrailY + drop.y) * 0.5,
     });
