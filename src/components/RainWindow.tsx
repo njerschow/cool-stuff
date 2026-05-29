@@ -229,8 +229,7 @@ void main() {
   float splotchMask = smoothstep(0.78, 0.97, compose.a) * (1.0 - mask);
   float splotchEdge = smoothstep(0.72, 0.88, compose.a) * (1.0 - smoothstep(0.9, 0.99, compose.a));
   float trailVeil = smoothstep(0.38, 0.78, compose.a) * (1.0 - smoothstep(0.92, 0.99, compose.a));
-  float trailWater = trailVeil * (1.0 - mask);
-  float dropMask = clamp(mask + splotchMask * 0.075 + trailWater * 0.18, 0.0, 1.0);
+  float dropMask = clamp(mask + splotchMask * 0.075, 0.0, 1.0);
   vec2 refractUv = uv - (compose.xy - vec2(0.5)) * (compose.b * 0.6 + 0.4);
   vec3 normal = normalize(vec3((compose.xy - vec2(0.5)) * vec2(2.0), 1.0));
   vec3 lightDir = vec3(-1.0, 1.0, 2.0);
@@ -245,7 +244,7 @@ void main() {
   vec3 background = deepenPaneBase(texture2D(uFrost, uv).rgb);
   vec3 mistBackground = deepenPaneBase(texture2D(uMistBackground, uv).rgb) + vec3(0.0015, 0.002, 0.0025);
   float mistValue = texture2D(uMistTex, uv).r;
-  float wetMistRelief = clamp(trailWater * 0.025 + splotchMask * 0.1 + mask * 0.08, 0.0, 0.16);
+  float wetMistRelief = clamp(trailVeil * 0.32 + splotchMask * 0.12 + mask * 0.08, 0.0, 0.32);
   float mistAlpha = clamp(mistValue * (0.76 - wetMistRelief), 0.0, 0.82);
   vec3 baseColor = mix(background, mistBackground, mistAlpha);
   vec3 dropColor = deepenPaneBase(texture2D(uFrost, refractUv).rgb);
@@ -255,10 +254,9 @@ void main() {
   dropColor *= 1.0 - splotchMask * 0.28 - splotchEdge * 0.12;
   dropColor += vec3(specular) * (mask * 0.08);
   vec3 rainColor = mix(baseColor, dropColor, dropMask);
-  vec3 trailColor = mix(baseColor, dropColor, 0.36) * (1.0 - trailWater * 0.14);
-  trailColor += glare * (trailWater * 0.14) + vec3(specular) * (trailWater * 0.045);
-  rainColor = mix(rainColor, trailColor, trailWater * 0.3);
-  rainColor += glare * (0.46 + mask * 0.28 + trailWater * 0.06);
+  vec3 trailColor = mix(baseColor, dropColor, 0.32) * (1.0 - trailVeil * 0.18);
+  rainColor = mix(rainColor, trailColor, trailVeil * 0.18);
+  rainColor += glare * (0.46 + mask * 0.28 + trailVeil * 0.12);
   float normalizedVisibility = clamp((uRainVisibility - uRainVisibilityMin) / uRainVisibilityRange, 0.0, 1.0);
   float overlayOpacity = uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale;
   float localOverlayOpacity = overlayOpacity;
@@ -431,17 +429,14 @@ varying float vStrength;
 void main() {
   vec2 centered = vUv - vec2(0.5);
   vec2 p = abs(centered);
-  float edgeFalloff = 1.0 - smoothstep(0.18, 0.5, p.x);
-  float centerWater = 1.0 - smoothstep(0.018, 0.16, p.x);
-  float beadPhase = sin(vUv.y * 44.0 + vUv.x * 9.0 + vStrength * 4.7) * 0.5 + 0.5;
-  float beadWater = (0.58 + 0.42 * beadPhase) * centerWater;
+  float edgeFalloff = 1.0 - smoothstep(0.24, 0.5, p.x);
+  float centerWater = 1.0 - smoothstep(0.035, 0.24, p.x);
   float taper = smoothstep(0.0, 0.075, vUv.y) * (1.0 - smoothstep(0.93, 1.0, vUv.y));
   float fade = smoothstep(0.02, 0.32, vStrength);
-  float wetFilm = edgeFalloff * 0.14 + beadWater * 0.62;
-  float alpha = clamp(wetFilm * taper * fade * (0.44 + vStrength * 0.2), 0.0, 0.58);
+  float alpha = clamp(max(edgeFalloff * 0.58, centerWater) * taper * fade * (0.78 + vStrength * 0.32), 0.0, 1.0);
   float ribble = sin((vUv.y + vUv.x * 0.19) * 42.0) * 0.014;
   vec2 normal = vec2(0.5 + centered.x * 0.66 + ribble, 0.5 - centered.y * 0.055);
-  float depth = (0.24 + centerWater * 0.5 + edgeFalloff * 0.08) * alpha;
+  float depth = (0.16 + centerWater * 0.42 + edgeFalloff * 0.1) * alpha;
   gl_FragColor = vec4(normal * alpha, depth, alpha);
 }
 `;
@@ -806,7 +801,7 @@ export function RainWindow({
       toneMapped: false,
       transparent: true,
       uniforms: {
-        uEraserSmooth: { value: new THREE.Vector2(0.93, 1) },
+        uEraserSmooth: { value: new THREE.Vector2(0.58, 0.94) },
         uRainMap: { value: raindropTarget.texture },
       },
       vertexShader: glassVertexShader,
@@ -820,9 +815,9 @@ export function RainWindow({
       spawnLimit: settings.spawnLimit,
       spawnSize: [39, 86],
       trailDistance: [9, 16],
-      trailDropDensity: 0.2,
-      trailDropSize: [0.28, 0.48],
-      trailSpread: 0.9,
+      trailDropDensity: 0.42,
+      trailDropSize: [0.22, 0.42],
+      trailSpread: 0.98,
       velocitySpread: 0.22,
     });
     const dropScene = new THREE.Scene();
@@ -897,11 +892,8 @@ export function RainWindow({
       transparent: true,
       uniforms: {
         uMainTex: { value: raindropTexture },
-        uSeed: { value: 1 },
-        uSizeRange: { value: new THREE.Vector2(8, 25) },
-        uSpawnRect: { value: new THREE.Vector4(0, 0, 1, 1) },
       },
-      vertexShader: proceduralMicrodropletVertexShader,
+      vertexShader: raindropMapVertexShader,
     });
     const microdropMesh = new THREE.InstancedMesh(
       dropGeometry,
@@ -1092,13 +1084,22 @@ export function RainWindow({
       const count = Math.min(7, Math.floor(microdropSpawnBudget));
       microdropMesh.count = count;
       microdropSpawnBudget -= count;
-      microdropMaterial.uniforms.uSeed.value = Math.random() * 133;
-      microdropMaterial.uniforms.uSpawnRect.value.set(
-        0,
-        0,
-        Math.max(1, raindropTarget.width),
-        rainMapHeight
-      );
+
+      for (let index = 0; index < count; index += 1) {
+        const size = 8 + Math.random() * 17;
+        dropPosition.set(
+          Math.random() * Math.max(1, raindropTarget.width),
+          Math.random() * rainMapHeight,
+          0
+        );
+        dropScale.set(size, size, 1);
+        dropMatrix.compose(dropPosition, dropQuaternion, dropScale);
+        microdropMesh.setMatrixAt(index, dropMatrix);
+      }
+
+      if (count > 0) {
+        microdropMesh.instanceMatrix.needsUpdate = true;
+      }
 
       return count;
     };
