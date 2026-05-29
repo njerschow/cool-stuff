@@ -66,7 +66,8 @@ test("falling streaks use the RaindropFX mist-erasure loop", async () => {
   assert.match(source, /trailDropSize: \[0\.22, 0\.42\],/);
   assert.match(source, /trailSpread: 0\.98,/);
   assert.match(source, /float mistValue = texture2D\(uMistTex, uv\)\.r;/);
-  assert.match(source, /float mistAlpha = clamp\(mistValue \* 0\.62, 0\.0, 0\.78\);/);
+  assert.match(source, /float wetMistRelief = clamp\(trailVeil \* 0\.32 \+ splotchMask \* 0\.12 \+ mask \* 0\.08, 0\.0, 0\.32\);/);
+  assert.match(source, /float mistAlpha = clamp\(mistValue \* \(0\.76 - wetMistRelief\), 0\.0, 0\.82\);/);
   assert.match(source, /rainColor = mix\(rainColor, trailColor, trailVeil \* 0\.18\);/);
   assert.match(source, /float localOverlayOpacity = overlayOpacity;/);
   assert.match(source, /const trailDropFragmentShader = `/);

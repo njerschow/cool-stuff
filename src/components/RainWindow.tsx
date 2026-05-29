@@ -244,7 +244,8 @@ void main() {
   vec3 background = deepenPaneBase(texture2D(uFrost, uv).rgb);
   vec3 mistBackground = deepenPaneBase(texture2D(uMistBackground, uv).rgb) + vec3(0.0015, 0.002, 0.0025);
   float mistValue = texture2D(uMistTex, uv).r;
-  float mistAlpha = clamp(mistValue * 0.62, 0.0, 0.78);
+  float wetMistRelief = clamp(trailVeil * 0.32 + splotchMask * 0.12 + mask * 0.08, 0.0, 0.32);
+  float mistAlpha = clamp(mistValue * (0.76 - wetMistRelief), 0.0, 0.82);
   vec3 baseColor = mix(background, mistBackground, mistAlpha);
   vec3 dropColor = deepenPaneBase(texture2D(uFrost, refractUv).rgb);
   float lensContrast = 1.32 + mask * 0.28 + splotchMask * 0.16;
