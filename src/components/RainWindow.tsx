@@ -304,11 +304,12 @@ void main() {
 const mistEraseFragmentShader = `
 uniform sampler2D uRainMap;
 uniform vec2 uEraserSmooth;
+uniform float uEraseStrength;
 varying vec2 vUv;
 
 void main() {
   float mask = smoothstep(uEraserSmooth.x, uEraserSmooth.y, texture2D(uRainMap, vUv).a);
-  gl_FragColor = vec4(0.0, 0.0, 0.0, mask);
+  gl_FragColor = vec4(0.0, 0.0, 0.0, mask * uEraseStrength);
 }
 `;
 
@@ -695,6 +696,7 @@ export function RainWindow({
       toneMapped: false,
       transparent: true,
       uniforms: {
+        uEraseStrength: { value: 1 },
         uEraserSmooth: { value: new THREE.Vector2(0.93, 1) },
         uRainMap: { value: raindropTarget.texture },
       },
@@ -704,15 +706,15 @@ export function RainWindow({
     mistScene.add(mistQuad);
 
     const paneSimulation = new RaindropPaneSimulation({
-      initialFillRatio: 0.1,
+      initialFillRatio: 0,
       initialSpread: 0.34,
       spawnLimit: settings.spawnLimit,
-      spawnSize: [39, 86],
-      trailDistance: [9, 16],
-      trailDropDensity: 0.42,
-      trailDropSize: [0.22, 0.42],
-      trailSpread: 0.98,
-      velocitySpread: 0.22,
+      spawnSize: [36, 78],
+      trailDistance: [110, 190],
+      trailDropDensity: 0.1,
+      trailDropSize: [0.08, 0.16],
+      trailSpread: 0.18,
+      velocitySpread: 0.08,
     });
     const dropScene = new THREE.Scene();
     const dropCamera = new THREE.OrthographicCamera(0, 1, 0, 1, -1, 1);
@@ -849,7 +851,7 @@ export function RainWindow({
       mistTarget.setSize(rainWidth, rainHeight);
       dropletTarget.setSize(rainWidth, rainHeight);
       renderer.setRenderTarget(mistTarget);
-      renderer.setClearColor(0x858585, 0.52);
+      renderer.setClearColor(0x737373, 0.45);
       renderer.clear(true, true, true);
       renderer.setRenderTarget(dropletTarget);
       renderer.setClearColor(0x000000, 0);
@@ -877,8 +879,9 @@ export function RainWindow({
 
       for (let index = 0; index < count; index += 1) {
         const drop = drops[index];
+        const displayHeight = Math.min(drop.sizeY, drop.sizeX * 1.35);
         dropPosition.set(drop.x, drop.y, 0);
-        dropScale.set(drop.sizeX, drop.sizeY, 1);
+        dropScale.set(drop.sizeX, displayHeight, 1);
         dropMatrix.compose(dropPosition, dropQuaternion, dropScale);
         dropMesh.setMatrixAt(index, dropMatrix);
         instanceSize.setX(index, drop.size);
@@ -1069,7 +1072,7 @@ export function RainWindow({
         renderer.render(microdropScene, dropCamera);
       }
       if (rainDelta > 0) {
-        mistAddMaterial.uniforms.uAmount.value = rainDelta / 16.5;
+        mistAddMaterial.uniforms.uAmount.value = rainDelta / 6.5;
         renderer.setRenderTarget(mistTarget);
         mistQuad.material = mistAddMaterial;
         renderer.render(mistScene, screenCamera);
@@ -1078,8 +1081,10 @@ export function RainWindow({
       renderer.render(dropScene, dropCamera);
       if (rainDelta > 0 || dropMesh.count > 0) {
         mistQuad.material = mistEraseMaterial;
+        mistEraseMaterial.uniforms.uEraseStrength.value = 0;
         renderer.setRenderTarget(mistTarget);
         renderer.render(mistScene, screenCamera);
+        mistEraseMaterial.uniforms.uEraseStrength.value = 1;
         renderer.setRenderTarget(dropletTarget);
         renderer.render(mistScene, screenCamera);
       }

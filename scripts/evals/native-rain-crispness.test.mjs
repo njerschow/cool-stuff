@@ -63,7 +63,7 @@ test("raindrop normal texture is not mipmap-softened", async () => {
 test("native raindrops render slightly larger water lenses", async () => {
   const source = await rainWindowSource();
 
-  assert.match(source, /spawnSize: \[39, 86\],/);
+  assert.match(source, /spawnSize: \[36, 78\],/);
   assert.match(source, /const size = 8 \+ Math\.random\(\) \* 17;/);
 });
 
@@ -80,10 +80,12 @@ test("falling streaks use the RaindropFX mist-erasure loop", async () => {
   assert.doesNotMatch(source, /const trailEraseTarget = new THREE\.WebGLRenderTarget/);
   assert.doesNotMatch(source, /const clearChannelTargetA = new THREE\.WebGLRenderTarget/);
   assert.doesNotMatch(source, /clearChannelHistoryFragmentShader/);
-  assert.match(source, /trailDistance: \[9, 16\],/);
-  assert.match(source, /trailDropDensity: 0\.42,/);
-  assert.match(source, /trailDropSize: \[0\.22, 0\.42\],/);
-  assert.match(source, /trailSpread: 0\.98,/);
+  assert.match(source, /initialFillRatio: 0,/);
+  assert.match(source, /trailDistance: \[110, 190\],/);
+  assert.match(source, /trailDropDensity: 0\.1,/);
+  assert.match(source, /trailDropSize: \[0\.08, 0\.16\],/);
+  assert.match(source, /trailSpread: 0\.18,/);
+  assert.match(source, /const displayHeight = Math\.min\(drop\.sizeY, drop\.sizeX \* 1\.35\);/);
   assert.doesNotMatch(source, /const trailDropFragmentShader = `/);
   assert.doesNotMatch(source, /fragmentShader: trailDropFragmentShader,/);
   assert.doesNotMatch(source, /const updateTrailEraseMesh = \(\) => \{/);
@@ -92,9 +94,13 @@ test("falling streaks use the RaindropFX mist-erasure loop", async () => {
   assert.match(source, /const rainDelta =\n        nativeGlass && delta > 0 \? Math\.min\(delta \* 1\.65, 0\.05\) : 0;/);
   assert.match(source, /const mistTarget = new THREE\.WebGLRenderTarget\(1, 1, \{\n      depthBuffer: false,\n      stencilBuffer: false,\n      type: THREE\.HalfFloatType,/);
   assert.match(source, /uEraserSmooth: \{ value: new THREE\.Vector2\(0\.93, 1\) \},/);
+  assert.match(source, /uEraseStrength: \{ value: 1 \},/);
   assert.match(source, /float mask = smoothstep\(uEraserSmooth\.x, uEraserSmooth\.y, texture2D\(uRainMap, vUv\)\.a\);/);
-  assert.match(source, /renderer\.setClearColor\(0x858585, 0\.52\);/);
-  assert.match(source, /mistAddMaterial\.uniforms\.uAmount\.value = rainDelta \/ 16\.5;/);
+  assert.match(source, /gl_FragColor = vec4\(0\.0, 0\.0, 0\.0, mask \* uEraseStrength\);/);
+  assert.match(source, /renderer\.setClearColor\(0x737373, 0\.45\);/);
+  assert.match(source, /mistAddMaterial\.uniforms\.uAmount\.value = rainDelta \/ 6\.5;/);
+  assert.match(source, /mistEraseMaterial\.uniforms\.uEraseStrength\.value = 0;/);
+  assert.match(source, /mistEraseMaterial\.uniforms\.uEraseStrength\.value = 1;/);
   assert.doesNotMatch(source, /texture2D\(uTrailEraseMap/);
   assert.doesNotMatch(source, /clearChannelColor/);
   assert.match(simulation, /export type RenderTrail = \{/);
