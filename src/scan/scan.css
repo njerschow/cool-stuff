@@ -78,6 +78,53 @@ body,
   letter-spacing: 0.03em;
 }
 
+.scan-panel {
+  position: absolute;
+  top: 78px;
+  left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(18, 22, 30, 0.82);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.scan-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.scan-field span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6f7c97;
+}
+
+.scan-field select {
+  appearance: none;
+  min-width: 220px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(40, 48, 64, 0.6);
+  color: #e8ecf4;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.scan-field select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .scan-toolbar {
   position: absolute;
   bottom: 24px;
