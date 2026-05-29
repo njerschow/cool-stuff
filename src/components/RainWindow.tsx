@@ -810,7 +810,7 @@ export function RainWindow({
     mistScene.add(mistQuad);
 
     const paneSimulation = new RaindropPaneSimulation({
-      initialFillRatio: 0,
+      initialFillRatio: 0.1,
       initialSpread: 0.34,
       spawnLimit: settings.spawnLimit,
       spawnSize: [39, 86],
@@ -823,13 +823,7 @@ export function RainWindow({
     const dropScene = new THREE.Scene();
     const dropCamera = new THREE.OrthographicCamera(0, 1, 0, 1, -1, 1);
     dropCamera.position.z = 1;
-    let raindropTextureReady = false;
-    const raindropTexture = new THREE.TextureLoader().load(
-      raindropTextureUrl,
-      () => {
-        raindropTextureReady = true;
-      }
-    );
+    const raindropTexture = new THREE.TextureLoader().load(raindropTextureUrl);
     raindropTexture.colorSpace = THREE.NoColorSpace;
     raindropTexture.generateMipmaps = false;
     raindropTexture.magFilter = THREE.LinearFilter;
@@ -955,12 +949,6 @@ export function RainWindow({
     let benchmarkLastFrameAt = performance.now();
     let benchmarkLastReportAt = performance.now();
     let benchmarkRenderMs = 0;
-    let lastPixelRatio = 0;
-    let lastRainHeight = 0;
-    let lastRainWidth = 0;
-    let lastSafeHeight = 0;
-    let lastSafeWidth = 0;
-    let microdropSpawnBudget = 0;
     let rainMapHeight = 1;
     let sceneTime = 0;
     let targetMegapixels = 0;
@@ -977,9 +965,6 @@ export function RainWindow({
       const { width, height } = host.getBoundingClientRect();
       const safeWidth = Math.max(1, Math.floor(width));
       const safeHeight = Math.max(1, Math.floor(height));
-      if (safeWidth <= 1 || safeHeight <= 1) {
-        return;
-      }
       const pixelRatio = Math.min(window.devicePixelRatio, settings.pixelRatio);
 
       renderer.setPixelRatio(pixelRatio);
@@ -993,21 +978,6 @@ export function RainWindow({
       const rainHeight = Math.max(1, Math.floor(targetHeight * settings.raindropMapScale));
       targetMegapixels = (targetWidth * targetHeight) / 1_000_000;
       rainMapMegapixels = (rainWidth * rainHeight) / 1_000_000;
-
-      if (
-        safeWidth === lastSafeWidth &&
-        safeHeight === lastSafeHeight &&
-        pixelRatio === lastPixelRatio &&
-        rainWidth === lastRainWidth &&
-        rainHeight === lastRainHeight
-      ) {
-        return;
-      }
-      lastSafeWidth = safeWidth;
-      lastSafeHeight = safeHeight;
-      lastPixelRatio = pixelRatio;
-      lastRainWidth = rainWidth;
-      lastRainHeight = rainHeight;
 
       target.setSize(targetWidth, targetHeight);
       const glareWidth = Math.max(1, Math.floor(targetWidth * 0.52));
@@ -1035,8 +1005,6 @@ export function RainWindow({
       renderer.setRenderTarget(dropletTarget);
       renderer.setClearColor(0x000000, 0);
       renderer.clear(true, true, true);
-      microdropSpawnBudget = 0;
-      microdropMesh.count = 0;
       renderer.setRenderTarget(null);
       paneSimulation.resize(rainWidth, rainHeight);
       rainMapHeight = rainHeight;
@@ -1077,13 +1045,8 @@ export function RainWindow({
         return 0;
       }
 
-      microdropSpawnBudget = Math.min(
-        maxMicrodropInstances,
-        microdropSpawnBudget + 260 * rainDelta
-      );
-      const count = Math.min(7, Math.floor(microdropSpawnBudget));
+      const count = Math.min(maxMicrodropInstances, Math.floor(620 * rainDelta));
       microdropMesh.count = count;
-      microdropSpawnBudget -= count;
 
       for (let index = 0; index < count; index += 1) {
         const size = 8 + Math.random() * 17;
@@ -1240,9 +1203,7 @@ export function RainWindow({
       const rawDelta = Math.min(clock.getDelta(), 0.04);
       const delta = pausedRef.current ? 0 : rawDelta * (reducedMotion ? 0.28 : 1);
       const rainDelta =
-        nativeGlass && raindropTextureReady && delta > 0
-          ? Math.min(delta * 1.65, 0.05)
-          : 0;
+        nativeGlass && delta > 0 ? Math.min(delta * 1.65, 0.05) : 0;
       sceneTime += delta;
 
       if (rainDelta > 0) {
@@ -1300,7 +1261,7 @@ export function RainWindow({
       }
       renderer.setRenderTarget(raindropTarget);
       renderer.render(dropScene, dropCamera);
-      if (rainDelta > 0) {
+      if (rainDelta > 0 || dropMesh.count > 0) {
         mistQuad.material = mistEraseMaterial;
         renderer.setRenderTarget(mistTarget);
         renderer.render(mistScene, screenCamera);

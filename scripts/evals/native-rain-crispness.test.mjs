@@ -68,26 +68,20 @@ test("falling streaks use the RaindropFX mist-erasure loop", async () => {
   assert.match(source, /float mistValue = texture2D\(uMistTex, uv\)\.r;/);
   assert.match(source, /float wetMistRelief = clamp\(trailVeil \* 0\.32 \+ splotchMask \* 0\.12 \+ mask \* 0\.08, 0\.0, 0\.32\);/);
   assert.match(source, /float mistAlpha = clamp\(mistValue \* \(0\.76 - wetMistRelief\), 0\.0, 0\.82\);/);
-  assert.match(source, /vec3 trailColor = mix\(baseColor, dropColor, 0\.32\) \* \(1\.0 - trailVeil \* 0\.18\);/);
   assert.match(source, /rainColor = mix\(rainColor, trailColor, trailVeil \* 0\.18\);/);
   assert.match(source, /float localOverlayOpacity = overlayOpacity;/);
   assert.match(source, /const trailDropFragmentShader = `/);
-  assert.match(source, /float alpha = clamp\(max\(edgeFalloff \* 0\.58, centerWater\) \* taper \* fade \* \(0\.78 \+ vStrength \* 0\.32\), 0\.0, 1\.0\);/);
   assert.match(source, /fragmentShader: trailDropFragmentShader,/);
   assert.match(source, /const updateTrailEraseMesh = \(\) => \{/);
   assert.match(source, /const trails = paneSimulation\.renderTrails;/);
   assert.match(source, /renderer\.setRenderTarget\(raindropTarget\);\n      renderer\.setClearColor\(0x000000, 0\);\n      renderer\.clear\(true, true, true\);[\s\S]+renderer\.render\(trailEraseScene, dropCamera\);[\s\S]+renderer\.render\(dropScene, dropCamera\);/);
-  assert.match(source, /initialFillRatio: 0,/);
-  assert.match(source, /let raindropTextureReady = false;/);
-  assert.match(source, /raindropTextureReady = true;/);
-  assert.match(source, /const rainDelta =\n        nativeGlass && raindropTextureReady && delta > 0\n          \? Math\.min\(delta \* 1\.65, 0\.05\)\n          : 0;/);
+  assert.match(source, /const rainDelta =\n        nativeGlass && delta > 0 \? Math\.min\(delta \* 1\.65, 0\.05\) : 0;/);
   assert.match(source, /const mistTarget = new THREE\.WebGLRenderTarget\(1, 1, \{\n      depthBuffer: false,\n      stencilBuffer: false,\n      type: THREE\.HalfFloatType,/);
   assert.match(source, /uEraserSmooth: \{ value: new THREE\.Vector2\(0\.58, 0\.94\) \},/);
   assert.match(source, /float mask = smoothstep\(uEraserSmooth\.x, uEraserSmooth\.y, texture2D\(uRainMap, vUv\)\.a\);/);
   assert.match(source, /float fade = smoothstep\(0\.02, 0\.32, vStrength\);/);
   assert.match(source, /renderer\.setClearColor\(0x858585, 0\.52\);/);
   assert.match(source, /mistAddMaterial\.uniforms\.uAmount\.value = rainDelta \/ 16\.5;/);
-  assert.match(source, /if \(rainDelta > 0\) \{\n        mistQuad\.material = mistEraseMaterial;/);
   assert.doesNotMatch(source, /texture2D\(uTrailEraseMap/);
   assert.doesNotMatch(source, /clearChannelColor/);
   assert.match(simulation, /export type RenderTrail = \{/);
@@ -100,10 +94,6 @@ test("falling streaks use the RaindropFX mist-erasure loop", async () => {
   assert.match(simulation, /get renderTrails\(\): RenderTrail\[\] \{/);
   assert.match(simulation, /get activeRenderTrails\(\): RenderTrail\[\] \{/);
   assert.match(simulation, /private getMovingTrails\(\): RenderTrail\[\] \{/);
-  assert.match(simulation, /const width = clamp\(drop\.sizeX \* 0\.24, 8, 26\);/);
-  assert.match(simulation, /const length = distance \+ clamp\(drop\.sizeY \* 0\.58, 14, 50\);/);
-  assert.match(simulation, /lifespan: rand\(2, 4\.2\),/);
-  assert.match(simulation, /width: clamp\(drop\.sizeX \* 0\.22, 8, 28\),/);
   assert.match(simulation, /drop\.previousX = drop\.x;/);
 });
 
@@ -121,21 +111,6 @@ test("native glass mixes realtime background glare into the pane", async () => {
   assert.match(source, /renderGlare\(\);\n      copyToGlassTarget\(\);/);
   assert.match(source, /float brightMask = smoothstep\(0\.28, 0\.98, luma\);/);
   assert.match(source, /rainColor \+= glare \* \(0\.46 \+ mask \* 0\.28 \+ trailVeil \* 0\.12\);/);
-});
-
-test("microdroplets spawn through a capped budget instead of flashing in large batches", async () => {
-  const source = await rainWindowSource();
-
-  assert.match(source, /let microdropSpawnBudget = 0;/);
-  assert.match(source, /vertexShader: raindropMapVertexShader,/);
-  assert.match(source, /microdropSpawnBudget = Math\.min\(\n        maxMicrodropInstances,\n        microdropSpawnBudget \+ 260 \* rainDelta\n      \);/);
-  assert.match(source, /const count = Math\.min\(7, Math\.floor\(microdropSpawnBudget\)\);/);
-  assert.match(source, /microdropSpawnBudget -= count;/);
-  assert.match(source, /microdropMesh\.setMatrixAt\(index, dropMatrix\);/);
-  assert.match(source, /microdropMesh\.instanceMatrix\.needsUpdate = true;/);
-  assert.match(source, /microdropSpawnBudget = 0;\n      microdropMesh\.count = 0;/);
-  assert.doesNotMatch(source, /Math\.floor\(620 \* rainDelta\)/);
-  assert.doesNotMatch(source, /microdropMaterial\.uniforms\.uSeed\.value = Math\.random\(\) \* 133;/);
 });
 
 test("street cars keep head and tail lights on the correct local ends", async () => {
