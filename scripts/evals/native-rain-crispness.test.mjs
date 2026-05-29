@@ -31,7 +31,8 @@ test("native drop shader mirrors the RaindropFX transparent refractive pass", as
   );
   assert.match(source, /vec3 lightDir = vec3\(-1\.0, 1\.0, 2\.0\) - 0\.0 \* vec3\(vUv\.xy, 0\.0\);/);
   assert.match(source, /color\.rgb \+= vec3\(\(lambert - 0\.8\) \* 0\.2\);/);
-  assert.match(source, /gl_FragColor = vec4\(color\.rgb, mask \* overlayOpacity\);/);
+  assert.match(source, /float coreMask = smoothstep\(0\.985, 0\.998, compose\.a\);/);
+  assert.match(source, /gl_FragColor = vec4\(color\.rgb, coreMask \* overlayOpacity\);/);
   assert.match(source, /blending: THREE\.NormalBlending,[\s\S]+fragmentShader: glassFragmentShader,[\s\S]+transparent: true,/);
   assert.doesNotMatch(source, /vec3 color = mix\(sceneColor, rainColor/);
   assert.doesNotMatch(source, /deepenPaneBase/);
@@ -93,7 +94,7 @@ test("falling streaks use the RaindropFX mist-erasure loop", async () => {
   assert.match(source, /renderer\.setRenderTarget\(raindropTarget\);\n      renderer\.setClearColor\(0x000000, 0\);\n      renderer\.clear\(true, true, true\);[\s\S]+renderer\.render\(dropScene, dropCamera\);/);
   assert.match(source, /const rainDelta =\n        nativeGlass && delta > 0 \? Math\.min\(delta \* 1\.65, 0\.05\) : 0;/);
   assert.match(source, /const mistTarget = new THREE\.WebGLRenderTarget\(1, 1, \{\n      depthBuffer: false,\n      stencilBuffer: false,\n      type: THREE\.HalfFloatType,/);
-  assert.match(source, /uEraserSmooth: \{ value: new THREE\.Vector2\(0\.93, 1\) \},/);
+  assert.match(source, /uEraserSmooth: \{ value: new THREE\.Vector2\(0\.985, 1\) \},/);
   assert.match(source, /uEraseStrength: \{ value: 1 \},/);
   assert.match(source, /float mask = smoothstep\(uEraserSmooth\.x, uEraserSmooth\.y, texture2D\(uRainMap, vUv\)\.a\);/);
   assert.match(source, /gl_FragColor = vec4\(0\.0, 0\.0, 0\.0, mask \* uEraseStrength\);/);

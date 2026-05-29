@@ -129,7 +129,7 @@ test("native shader exposes the same overlay curve as uniforms", async () => {
   );
   assert.match(
     source,
-    /gl_FragColor = vec4\(color\.rgb, mask \* overlayOpacity\);/
+    /gl_FragColor = vec4\(color\.rgb, coreMask \* overlayOpacity\);/
   );
   assert.match(source, /color\.a = texture2D\(uMistTex, vUv\)\.r \* overlayOpacity;/);
   assert.doesNotMatch(source, /0\.72 \+ normalizedVisibility \* 0\.22/);

@@ -218,6 +218,7 @@ void main() {
     max(dropletMap.a, raindrop.a)
   );
   float mask = smoothstep(0.96, 0.99, compose.a);
+  float coreMask = smoothstep(0.985, 0.998, compose.a);
   vec2 refractUv = vUv - (compose.xy - vec2(0.5)) * vec2(compose.b * 0.6 + 0.4);
   vec3 normal = normalize(vec3((compose.xy - vec2(0.5)) * vec2(2.0), 1.0));
   vec3 lightDir = vec3(-1.0, 1.0, 2.0) - 0.0 * vec3(vUv.xy, 0.0);
@@ -231,7 +232,7 @@ void main() {
   vec4 color = texture2D(uBackground, refractUv);
   color.rgb += vec3((lambert - 0.8) * 0.2);
   color.rgb += vec3(specular) * vec3(0.0);
-  gl_FragColor = vec4(color.rgb, mask * overlayOpacity);
+  gl_FragColor = vec4(color.rgb, coreMask * overlayOpacity);
   #include <colorspace_fragment>
 }
 `;
@@ -697,7 +698,7 @@ export function RainWindow({
       transparent: true,
       uniforms: {
         uEraseStrength: { value: 1 },
-        uEraserSmooth: { value: new THREE.Vector2(0.93, 1) },
+        uEraserSmooth: { value: new THREE.Vector2(0.985, 1) },
         uRainMap: { value: raindropTarget.texture },
       },
       vertexShader: glassVertexShader,
