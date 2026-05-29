@@ -1,0 +1,228 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#scan-root {
+  margin: 0;
+  height: 100%;
+  background: #0d0f14;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #e8ecf4;
+}
+
+.scan-app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.scan-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.scan-canvas canvas {
+  display: block;
+}
+
+.scan-header {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  pointer-events: none;
+}
+
+.scan-brand {
+  pointer-events: auto;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #9aa7c2;
+  text-decoration: none;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(20, 24, 33, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: color 0.15s ease;
+}
+
+.scan-brand:hover {
+  color: #e8ecf4;
+}
+
+.scan-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.scan-title span {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.scan-title small {
+  font-size: 11px;
+  color: #6f7c97;
+  letter-spacing: 0.03em;
+}
+
+.scan-toolbar {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(18, 22, 30, 0.82);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.scan-toolbar button,
+.scan-upload {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(40, 48, 64, 0.6);
+  color: #cdd6ea;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.scan-toolbar button:hover:not(:disabled),
+.scan-upload:hover {
+  background: rgba(60, 72, 96, 0.8);
+  color: #fff;
+}
+
+.scan-toolbar button[data-active="true"] {
+  background: #4f7cff;
+  border-color: #4f7cff;
+  color: #fff;
+}
+
+.scan-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.scan-upload {
+  display: inline-flex;
+  align-items: center;
+}
+
+.scan-upload input {
+  display: none;
+}
+
+.scan-stats {
+  position: absolute;
+  top: 22px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(18, 22, 30, 0.78);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+}
+
+.scan-stats strong {
+  font-size: 13px;
+  color: #fff;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scan-stats span {
+  color: #8a97b3;
+  font-variant-numeric: tabular-nums;
+}
+
+.scan-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 440px;
+  text-align: center;
+  padding: 28px 32px;
+  border-radius: 18px;
+  background: rgba(16, 19, 27, 0.86);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.scan-overlay h2 {
+  margin: 0 0 10px;
+  font-size: 19px;
+}
+
+.scan-overlay p {
+  margin: 8px 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #aeb9d2;
+}
+
+.scan-overlay code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(79, 124, 255, 0.16);
+  color: #aac2ff;
+}
+
+.scan-hint {
+  font-size: 12.5px !important;
+  color: #6f7c97 !important;
+}
+
+.scan-error {
+  border-color: rgba(255, 90, 90, 0.4);
+}
+
+.scan-error h2 {
+  color: #ff8a8a;
+}
+
+.scan-dropzone {
+  position: absolute;
+  inset: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: #aac2ff;
+  border: 2px dashed rgba(79, 124, 255, 0.7);
+  border-radius: 20px;
+  background: rgba(79, 124, 255, 0.08);
+  pointer-events: none;
+}
