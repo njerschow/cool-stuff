@@ -252,7 +252,7 @@ void main() {
   vec3 mistBackground = deepenPaneBase(texture2D(uMistBackground, uv).rgb) + vec3(0.0015, 0.002, 0.0025);
   float mistValue = texture2D(uMistTex, uv).r;
   float clearChannel = smoothstep(0.04, 0.32, texture2D(uClearChannelMap, uv).r);
-  float mistAlpha = clamp(mistValue * (0.44 - clearChannel * 0.24) + trailVeil * 0.13 - clearChannel * 0.02, 0.0, 0.66);
+  float mistAlpha = clamp(mistValue * (0.52 - clearChannel * 0.28) + trailVeil * 0.15 - clearChannel * 0.018, 0.0, 0.78);
   vec3 baseColor = mix(background, mistBackground, mistAlpha);
   vec3 dropColor = deepenPaneBase(texture2D(uFrost, refractUv).rgb);
   float lensContrast = 1.32 + mask * 0.28 + splotchMask * 0.16;
@@ -1120,7 +1120,7 @@ export function RainWindow({
         1 / rainHeight
       );
       renderer.setRenderTarget(mistTarget);
-      renderer.setClearColor(0x6a6a6a, 0.42);
+      renderer.setClearColor(0x858585, 0.52);
       renderer.clear(true, true, true);
       renderer.setRenderTarget(dropletTarget);
       renderer.setClearColor(0x000000, 0);
@@ -1422,7 +1422,7 @@ export function RainWindow({
         renderer.render(microdropScene, dropCamera);
       }
       if (rainDelta > 0) {
-        mistAddMaterial.uniforms.uAmount.value = rainDelta / 5.8;
+        mistAddMaterial.uniforms.uAmount.value = rainDelta / 5.1;
         renderer.setRenderTarget(mistTarget);
         mistQuad.material = mistAddMaterial;
         renderer.render(mistScene, screenCamera);

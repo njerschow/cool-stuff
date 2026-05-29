@@ -64,7 +64,7 @@ test("falling drops keep visible wet residue trails", async () => {
   assert.match(source, /trailSpread: 0\.98,/);
   assert.match(source, /float mistValue = texture2D\(uMistTex, uv\)\.r;/);
   assert.match(source, /float clearChannel = smoothstep\(0\.04, 0\.32, texture2D\(uClearChannelMap, uv\)\.r\);/);
-  assert.match(source, /float mistAlpha = clamp\(mistValue \* \(0\.44 - clearChannel \* 0\.24\) \+ trailVeil \* 0\.13 - clearChannel \* 0\.02, 0\.0, 0\.66\);/);
+  assert.match(source, /float mistAlpha = clamp\(mistValue \* \(0\.52 - clearChannel \* 0\.28\) \+ trailVeil \* 0\.15 - clearChannel \* 0\.018, 0\.0, 0\.78\);/);
   assert.match(source, /rainColor = mix\(rainColor, trailColor, trailVeil \* 0\.18\);/);
   assert.match(source, /vec3 clearChannelColor = mix\(background, sharpScene, 0\.82\) \+ glare \* 0\.23;/);
   assert.match(source, /rainColor = mix\(rainColor, clearChannelColor, clearChannel \* \(0\.44 \+ mistValue \* 0\.24\)\);/);
@@ -96,7 +96,8 @@ test("falling drops keep visible wet residue trails", async () => {
   assert.match(source, /const rainDelta =\n        nativeGlass && delta > 0 \? Math\.min\(delta \* 1\.65, 0\.05\) : 0;/);
   assert.match(source, /trailAlpha = max\(trailAlpha, sampleRainAlpha\(vec2\(0\.0, -px\.y \* 4\.5\), 0\.94\)\);/);
   assert.match(source, /mask = min\(mask \* 0\.86, 0\.86\);/);
-  assert.match(source, /mistAddMaterial\.uniforms\.uAmount\.value = rainDelta \/ 5\.8;/);
+  assert.match(source, /renderer\.setClearColor\(0x858585, 0\.52\);/);
+  assert.match(source, /mistAddMaterial\.uniforms\.uAmount\.value = rainDelta \/ 5\.1;/);
   assert.match(source, /-decayDelta \/ 2\.9/);
   assert.doesNotMatch(source, /texture2D\(uClearChannelMap, vUv\)\.r \* 0\.98/);
   assert.match(simulation, /export type RenderTrail = \{/);
