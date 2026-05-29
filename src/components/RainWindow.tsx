@@ -1067,7 +1067,7 @@ export function RainWindow({
     };
 
     const updateTrailEraseMesh = () => {
-      const trails = paneSimulation.activeRenderTrails;
+      const trails = paneSimulation.renderTrails;
       const count = Math.min(trails.length, maxTrailEraseInstances);
       trailEraseMesh.count = count;
 

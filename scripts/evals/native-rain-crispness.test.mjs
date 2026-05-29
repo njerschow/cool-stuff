@@ -72,7 +72,7 @@ test("falling streaks use the RaindropFX mist-erasure loop", async () => {
   assert.match(source, /const trailDropFragmentShader = `/);
   assert.match(source, /fragmentShader: trailDropFragmentShader,/);
   assert.match(source, /const updateTrailEraseMesh = \(\) => \{/);
-  assert.match(source, /const trails = paneSimulation\.activeRenderTrails;/);
+  assert.match(source, /const trails = paneSimulation\.renderTrails;/);
   assert.match(source, /renderer\.setRenderTarget\(raindropTarget\);\n      renderer\.setClearColor\(0x000000, 0\);\n      renderer\.clear\(true, true, true\);[\s\S]+renderer\.render\(trailEraseScene, dropCamera\);[\s\S]+renderer\.render\(dropScene, dropCamera\);/);
   assert.match(source, /const rainDelta =\n        nativeGlass && delta > 0 \? Math\.min\(delta \* 1\.65, 0\.05\) : 0;/);
   assert.match(source, /const mistTarget = new THREE\.WebGLRenderTarget\(1, 1, \{\n      depthBuffer: false,\n      stencilBuffer: false,\n      type: THREE\.HalfFloatType,/);
