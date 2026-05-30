@@ -23,6 +23,9 @@ import { RAIN_VISIBILITY_SLIDER } from "./rainVisibility";
 import {
   DEFAULT_RAIN_TUNING,
   RAIN_TUNING_CONTROLS,
+  RAIN_TUNING_GROUP_LABELS,
+  RAIN_TUNING_GROUP_QUESTIONS,
+  RAIN_TUNING_GROUPS,
   type RainTuning,
   type RainTuningControl,
   type RainTuningGroup,
@@ -36,13 +39,8 @@ const projects = [
 
 const timeCycle: TimeOfDay[] = ["dusk", "night", "morning", "midday"];
 const liveRainRefreshMs = 22;
-const tuningGroupLabels: Record<RainTuningGroup, string> = {
-  droplets: "Droplets",
-  mist: "Mist",
-  render: "Render",
-  shader: "Shader",
-  simulation: "Simulation",
-};
+const rainTuningStorageKey = "cool-stuff:rain-tuning:v1";
+const rainTuningGroupStorageKey = "cool-stuff:rain-tuning-group:v1";
 
 const initialBackgroundMode: BackgroundMode =
   new URLSearchParams(window.location.search).get("mode") === "demo"
@@ -50,6 +48,32 @@ const initialBackgroundMode: BackgroundMode =
     : "street";
 const initialCompareMode =
   new URLSearchParams(window.location.search).get("compare") === "rain";
+const initialTuneMode =
+  window.location.pathname === "/tune/rain" ||
+  new URLSearchParams(window.location.search).get("tune") === "rain";
+
+const focusedFxOptionsByGroup: Record<RainTuningGroup, Record<string, unknown>> = {
+  droplets: {
+    mist: false,
+  },
+  mist: {
+    dropletsPerSeconds: 0,
+    mist: true,
+    raindropDiffuseLight: [0, 0, 0],
+    raindropSpecularLight: [0, 0, 0],
+    refractBase: 0,
+    refractScale: 0,
+  },
+  render: {},
+  shader: {
+    dropletsPerSeconds: 0,
+    mist: false,
+  },
+  simulation: {
+    dropletsPerSeconds: 0,
+    mist: false,
+  },
+};
 
 type BenchmarkState = {
   native?: RainWindowBenchmarkStats;
@@ -71,24 +95,65 @@ export default function App() {
   const [rainVisibility, setRainVisibility] = useState<number>(
     RAIN_VISIBILITY_SLIDER.defaultValue
   );
-  const [rainTuning, setRainTuning] = useState<RainTuning>(DEFAULT_RAIN_TUNING);
+  const [rainTuning, setRainTuning] = useState<RainTuning>(
+    readStoredRainTuning
+  );
+  const [activeTuningGroup, setActiveTuningGroup] =
+    useState<RainTuningGroup>(readStoredRainTuningGroup);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>("morning");
-  const showComparison = initialCompareMode && backgroundMode === "street";
+  const showTuneMode = initialTuneMode && backgroundMode === "street";
+  const showComparison =
+    !showTuneMode && initialCompareMode && backgroundMode === "street";
   const handleRainTuningChange = useCallback(
     (key: keyof RainTuning, value: number) => {
       setRainTuning((current) => ({ ...current, [key]: value }));
     },
     []
   );
+  const handleResetAllRainTuning = useCallback(() => {
+    setRainTuning({ ...DEFAULT_RAIN_TUNING });
+  }, []);
+  const handleResetRainTuningGroup = useCallback((group: RainTuningGroup) => {
+    setRainTuning((current) => {
+      const next = { ...current };
+      for (const control of RAIN_TUNING_CONTROLS) {
+        if (control.group === group) {
+          next[control.key] = DEFAULT_RAIN_TUNING[control.key];
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    writeStoredRainTuning(rainTuning);
+  }, [rainTuning]);
+
+  useEffect(() => {
+    writeStoredRainTuningGroup(activeTuningGroup);
+  }, [activeTuningGroup]);
 
   return (
     <main
       className="portfolio"
       data-background-mode={backgroundMode}
-      data-view={showComparison ? "compare" : "single"}
+      data-view={showTuneMode ? "tune" : showComparison ? "compare" : "single"}
     >
       {backgroundMode === "demo" ? (
         <OriginalRaindropDemo />
+      ) : showTuneMode ? (
+        <RainTuningWorkbench
+          activeGroup={activeTuningGroup}
+          onChange={handleRainTuningChange}
+          onGroupChange={setActiveTuningGroup}
+          onResetAll={handleResetAllRainTuning}
+          onResetGroup={handleResetRainTuningGroup}
+          paused={paused}
+          quality={quality}
+          rainTuning={rainTuning}
+          rainVisibility={rainVisibility}
+          timeOfDay={timeOfDay}
+        />
       ) : showComparison ? (
         <RainComparison
           paused={paused}
@@ -205,12 +270,63 @@ export default function App() {
           />
         </label>
       </div>
-      <RainTuningPanel
-        onChange={handleRainTuningChange}
-        value={rainTuning}
-      />
+      {!showTuneMode ? (
+        <RainTuningPanel
+          onChange={handleRainTuningChange}
+          value={rainTuning}
+        />
+      ) : null}
     </main>
   );
+}
+
+function readStoredRainTuning() {
+  try {
+    const raw = window.localStorage.getItem(rainTuningStorageKey);
+    if (!raw) {
+      return DEFAULT_RAIN_TUNING;
+    }
+
+    const stored = JSON.parse(raw) as Partial<Record<keyof RainTuning, unknown>>;
+    const next = { ...DEFAULT_RAIN_TUNING };
+    for (const key of Object.keys(DEFAULT_RAIN_TUNING) as Array<keyof RainTuning>) {
+      const value = stored[key];
+      if (typeof value === "number" && Number.isFinite(value)) {
+        next[key] = value;
+      }
+    }
+    return next;
+  } catch {
+    return DEFAULT_RAIN_TUNING;
+  }
+}
+
+function writeStoredRainTuning(value: RainTuning) {
+  try {
+    window.localStorage.setItem(rainTuningStorageKey, JSON.stringify(value));
+  } catch {
+    // Local storage can be disabled in private windows; tuning still works in memory.
+  }
+}
+
+function readStoredRainTuningGroup(): RainTuningGroup {
+  try {
+    const stored = window.localStorage.getItem(rainTuningGroupStorageKey);
+    if (RAIN_TUNING_GROUPS.includes(stored as RainTuningGroup)) {
+      return stored as RainTuningGroup;
+    }
+  } catch {
+    // Keep the first focused question when local storage is unavailable.
+  }
+  return RAIN_TUNING_GROUPS[0];
+}
+
+function writeStoredRainTuningGroup(value: RainTuningGroup) {
+  try {
+    window.localStorage.setItem(rainTuningGroupStorageKey, value);
+  } catch {
+    // Local storage can be disabled in private windows; the selected question still works in memory.
+  }
 }
 
 function RainTuningPanel({
@@ -243,38 +359,225 @@ function RainTuningPanel({
       <div className="tuning-panel-body">
         {(Object.keys(groups) as RainTuningGroup[]).map((group) => (
           <section className="tuning-group" key={group}>
-            <h2>{tuningGroupLabels[group]}</h2>
-            {groups[group].map((control) => (
-              <label
-                className="tuning-control"
-                key={control.key}
-                title={control.description}
-              >
-                <span className="tuning-label">
-                  <span>{control.label}</span>
-                  <span className="tuning-help" aria-label={control.description}>
-                    ?
-                  </span>
-                </span>
-                <input
-                  aria-label={control.label}
-                  max={control.max}
-                  min={control.min}
-                  onChange={(event) =>
-                    onChange(control.key, Number(event.target.value))
-                  }
-                  step={control.step}
-                  type="range"
-                  value={value[control.key]}
-                />
-                <output>{formatTuningValue(value[control.key])}</output>
-              </label>
-            ))}
+            <h2>{RAIN_TUNING_GROUP_LABELS[group]}</h2>
+            <RainTuningControls
+              controls={groups[group]}
+              onChange={onChange}
+              value={value}
+            />
           </section>
         ))}
       </div>
     </details>
   );
+}
+
+function RainTuningWorkbench({
+  activeGroup,
+  onChange,
+  onGroupChange,
+  onResetAll,
+  onResetGroup,
+  paused,
+  quality,
+  rainTuning,
+  rainVisibility,
+  timeOfDay,
+}: {
+  activeGroup: RainTuningGroup;
+  onChange: (key: keyof RainTuning, value: number) => void;
+  onGroupChange: (group: RainTuningGroup) => void;
+  onResetAll: () => void;
+  onResetGroup: (group: RainTuningGroup) => void;
+  paused: boolean;
+  quality: RenderQuality;
+  rainTuning: RainTuning;
+  rainVisibility: number;
+  timeOfDay: TimeOfDay;
+}) {
+  const activeIndex = Math.max(0, RAIN_TUNING_GROUPS.indexOf(activeGroup));
+  const activeControls = RAIN_TUNING_CONTROLS.filter(
+    (control) => control.group === activeGroup
+  );
+  const focusedNativeTuning = getFocusedNativeTuning(rainTuning, activeGroup);
+
+  const moveActiveGroup = (direction: -1 | 1) => {
+    const nextIndex =
+      (activeIndex + direction + RAIN_TUNING_GROUPS.length) %
+      RAIN_TUNING_GROUPS.length;
+    onGroupChange(RAIN_TUNING_GROUPS[nextIndex]);
+  };
+
+  return (
+    <section className="tuning-workbench" aria-label="Focused rain tuning">
+      <div className="tuning-workbench-grid">
+        <div className="comparison-panel" data-tuning-variant="reference">
+          <RainWindow
+            backgroundMode="street"
+            nativeGlass={false}
+            paused={paused}
+            quality={quality}
+            rainTuning={DEFAULT_RAIN_TUNING}
+            rainVisibility={rainVisibility}
+            timeOfDay={timeOfDay}
+          />
+          <OriginalRaindropOverlay
+            canvasId={`tuning-reference-${activeGroup}`}
+            captureIntervalMs={liveRainRefreshMs}
+            effectScale={2.35}
+            key={activeGroup}
+            options={focusedFxOptionsByGroup[activeGroup]}
+            sourceSelector='[data-tuning-variant="reference"] .street-canvas'
+            variant="snapshot"
+            visibility={rainVisibility}
+          />
+          <div className="comparison-label">RaindropFX Focus</div>
+        </div>
+        <div className="comparison-panel" data-tuning-variant="native">
+          <RainWindow
+            backgroundMode="street"
+            nativeGlass
+            paused={paused}
+            quality={quality}
+            rainTuning={focusedNativeTuning}
+            rainVisibility={rainVisibility}
+            timeOfDay={timeOfDay}
+          />
+          <div className="comparison-label">Native Focus</div>
+        </div>
+      </div>
+
+      <aside className="tuning-workbench-panel" aria-label="Tuning question">
+        <header className="tuning-workbench-header">
+          <div>
+            <span>
+              {activeIndex + 1} / {RAIN_TUNING_GROUPS.length}
+            </span>
+            <h2>{RAIN_TUNING_GROUP_LABELS[activeGroup]}</h2>
+          </div>
+          <span className="tuning-save-state">Saved locally</span>
+        </header>
+
+        <p className="tuning-question">
+          {RAIN_TUNING_GROUP_QUESTIONS[activeGroup]}
+        </p>
+
+        <div className="tuning-category-tabs" role="tablist" aria-label="Tuning categories">
+          {RAIN_TUNING_GROUPS.map((group) => (
+            <button
+              aria-selected={group === activeGroup}
+              className="tuning-category-tab"
+              key={group}
+              onClick={() => onGroupChange(group)}
+              role="tab"
+              title={RAIN_TUNING_GROUP_QUESTIONS[group]}
+              type="button"
+            >
+              {RAIN_TUNING_GROUP_LABELS[group]}
+            </button>
+          ))}
+        </div>
+
+        <div className="tuning-focused-controls">
+          <RainTuningControls
+            controls={activeControls}
+            onChange={onChange}
+            value={rainTuning}
+          />
+        </div>
+
+        <div className="tuning-actions">
+          <button onClick={() => moveActiveGroup(-1)} type="button">
+            Previous
+          </button>
+          <button onClick={() => moveActiveGroup(1)} type="button">
+            Next
+          </button>
+          <button onClick={() => onResetGroup(activeGroup)} type="button">
+            Reset Question
+          </button>
+          <button onClick={onResetAll} type="button">
+            Reset Defaults
+          </button>
+        </div>
+      </aside>
+    </section>
+  );
+}
+
+function RainTuningControls({
+  controls,
+  onChange,
+  value,
+}: {
+  controls: RainTuningControl[];
+  onChange: (key: keyof RainTuning, value: number) => void;
+  value: RainTuning;
+}) {
+  return (
+    <>
+      {controls.map((control) => (
+        <label
+          className="tuning-control"
+          key={control.key}
+          title={control.description}
+        >
+          <span className="tuning-label">
+            <span>{control.label}</span>
+            <span className="tuning-help" aria-label={control.description}>
+              ?
+            </span>
+          </span>
+          <input
+            aria-label={control.label}
+            max={control.max}
+            min={control.min}
+            onChange={(event) =>
+              onChange(control.key, Number(event.target.value))
+            }
+            step={control.step}
+            type="range"
+            value={value[control.key]}
+          />
+          <output>{formatTuningValue(value[control.key])}</output>
+        </label>
+      ))}
+    </>
+  );
+}
+
+function getFocusedNativeTuning(
+  rainTuning: RainTuning,
+  activeGroup: RainTuningGroup
+) {
+  const focused = { ...DEFAULT_RAIN_TUNING };
+  for (const control of RAIN_TUNING_CONTROLS) {
+    if (control.group === activeGroup) {
+      focused[control.key] = rainTuning[control.key];
+    }
+  }
+
+  if (activeGroup === "droplets") {
+    focused.mistAlpha = 0;
+  }
+
+  if (activeGroup === "mist") {
+    focused.rainOverlayBase = 0;
+    focused.rainOverlayScale = 0;
+    focused.microdropRate = 0;
+  }
+
+  if (activeGroup === "shader") {
+    focused.mistAlpha = 0;
+    focused.microdropRate = 0;
+  }
+
+  if (activeGroup === "simulation") {
+    focused.mistAlpha = 0;
+    focused.microdropRate = 0;
+  }
+
+  return focused;
 }
 
 function RainComparison({

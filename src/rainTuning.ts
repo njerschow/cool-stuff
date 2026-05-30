@@ -105,6 +105,30 @@ export type RainTuningGroup =
   | "droplets"
   | "simulation";
 
+export const RAIN_TUNING_GROUPS: RainTuningGroup[] = [
+  "droplets",
+  "mist",
+  "render",
+  "shader",
+  "simulation",
+];
+
+export const RAIN_TUNING_GROUP_LABELS: Record<RainTuningGroup, string> = {
+  droplets: "Droplets",
+  mist: "Mist",
+  render: "Render",
+  shader: "Shader",
+  simulation: "Simulation",
+};
+
+export const RAIN_TUNING_GROUP_QUESTIONS: Record<RainTuningGroup, string> = {
+  droplets: "Do the beads and larger water lenses have the right size, count, and crispness before mist gets involved?",
+  mist: "Does the pane start fogged, clear under falling water, and slowly fog back in the same way?",
+  render: "Does the render target scale and background blur make both sides comparable before judging the water?",
+  shader: "Does the refraction, mask edge, and lighting make each drop read like glass instead of a flat decal?",
+  simulation: "Do drops spawn, merge, stretch, fall, and shed child drops with the right physical rhythm?",
+};
+
 export type RainTuningControl = {
   description: string;
   group: RainTuningGroup;

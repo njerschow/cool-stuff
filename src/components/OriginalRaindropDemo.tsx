@@ -110,6 +110,7 @@ export function OriginalRaindropOverlay({
   captureIntervalMs = 700,
   effectScale = 1,
   onBenchmark,
+  options,
   sourceSelector,
   variant = "blend",
   visibility = RAIN_VISIBILITY_SLIDER.defaultValue,
@@ -119,6 +120,7 @@ export function OriginalRaindropOverlay({
   captureIntervalMs?: number;
   effectScale?: number;
   onBenchmark?: (id: string, stats: RaindropFxBenchmarkStats) => void;
+  options?: Record<string, unknown>;
   sourceSelector?: string;
   variant?: "blend" | "snapshot";
   visibility?: number;
@@ -144,7 +146,7 @@ export function OriginalRaindropOverlay({
       className={`raindrop-fx-demo raindrop-fx-overlay raindrop-fx-overlay--${variant}`}
       effectScale={effectScale}
       onBenchmark={onBenchmark}
-      options={undefined}
+      options={options}
       sourceSelector={sourceSelector}
       style={style}
     />
