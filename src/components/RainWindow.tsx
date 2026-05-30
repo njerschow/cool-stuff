@@ -755,9 +755,6 @@ export function RainWindow({
       transparent: true,
       uniforms: {
         uMainTex: { value: raindropTexture },
-        uSeed: { value: 1 },
-        uSizeRange: { value: new THREE.Vector2(10, 30) },
-        uSpawnRect: { value: new THREE.Vector4(0, 0, 1, 1) },
       },
       vertexShader: raindropMapVertexShader,
     });
@@ -782,8 +779,11 @@ export function RainWindow({
       transparent: true,
       uniforms: {
         uMainTex: { value: raindropTexture },
+        uSeed: { value: 1 },
+        uSizeRange: { value: new THREE.Vector2(10, 30) },
+        uSpawnRect: { value: new THREE.Vector4(0, 0, 1, 1) },
       },
-      vertexShader: raindropMapVertexShader,
+      vertexShader: proceduralMicrodropletVertexShader,
     });
     const microdropMesh = new THREE.InstancedMesh(
       dropGeometry,
@@ -900,22 +900,14 @@ export function RainWindow({
 
       const count = Math.min(maxMicrodropInstances, Math.floor(500 * rainDelta));
       microdropMesh.count = count;
-
-      for (let index = 0; index < count; index += 1) {
-        const size = 10 + Math.random() * 20;
-        dropPosition.set(
-          Math.random() * Math.max(1, raindropTarget.width),
-          Math.random() * rainMapHeight,
-          0
-        );
-        dropScale.set(size, size, 1);
-        dropMatrix.compose(dropPosition, dropQuaternion, dropScale);
-        microdropMesh.setMatrixAt(index, dropMatrix);
-      }
-
-      if (count > 0) {
-        microdropMesh.instanceMatrix.needsUpdate = true;
-      }
+      microdropMaterial.uniforms.uSpawnRect.value.set(
+        0,
+        0,
+        Math.max(1, raindropTarget.width),
+        rainMapHeight
+      );
+      microdropMaterial.uniforms.uSizeRange.value.set(10, 30);
+      microdropMaterial.uniforms.uSeed.value = Math.random() * 133;
 
       return count;
     };

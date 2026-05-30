@@ -66,7 +66,16 @@ test("native raindrops render slightly larger water lenses", async () => {
   const source = await rainWindowSource();
 
   assert.match(source, /spawnSize: \[60, 100\],/);
-  assert.match(source, /const size = 10 \+ Math\.random\(\) \* 20;/);
+  assert.match(source, /const proceduralMicrodropletVertexShader = `/);
+  assert.match(source, /attribute float aDropId;/);
+  assert.match(source, /uniform vec4 uSpawnRect;/);
+  assert.match(source, /uniform vec2 uSizeRange;/);
+  assert.match(source, /uniform float uSeed;/);
+  assert.match(source, /vertexShader: proceduralMicrodropletVertexShader,/);
+  assert.match(source, /microdropMaterial\.uniforms\.uSpawnRect\.value\.set\(/);
+  assert.match(source, /microdropMaterial\.uniforms\.uSizeRange\.value\.set\(10, 30\);/);
+  assert.match(source, /microdropMaterial\.uniforms\.uSeed\.value = Math\.random\(\) \* 133;/);
+  assert.doesNotMatch(source, /const size = 10 \+ Math\.random\(\) \* 20;/);
 });
 
 test("falling streaks use the RaindropFX mist-erasure loop", async () => {
