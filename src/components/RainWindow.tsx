@@ -258,7 +258,7 @@ void main() {
   float normalizedVisibility = clamp((uRainVisibility - uRainVisibilityMin) / uRainVisibilityRange, 0.0, 1.0);
   float visibilityGain = mix(0.62, 1.2, normalizedVisibility);
   float overlayOpacity = (uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale) * visibilityGain;
-  color.a = texture2D(uMistTex, vUv).r * overlayOpacity;
+  color.a = texture2D(uMistTex, vUv).r * overlayOpacity * 0.3;
   gl_FragColor = color;
   #include <colorspace_fragment>
 }
