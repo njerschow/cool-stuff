@@ -3,6 +3,7 @@ import Gauge from "lucide-react/dist/esm/icons/gauge.js";
 import ImageIcon from "lucide-react/dist/esm/icons/image.js";
 import Pause from "lucide-react/dist/esm/icons/pause.js";
 import Play from "lucide-react/dist/esm/icons/play.js";
+import SlidersHorizontal from "lucide-react/dist/esm/icons/sliders-horizontal.js";
 import Sparkles from "lucide-react/dist/esm/icons/sparkles.js";
 import SunMoon from "lucide-react/dist/esm/icons/sun-moon.js";
 import { useCallback, useEffect, useState } from "react";
@@ -19,6 +20,13 @@ import {
   type RaindropFxBenchmarkStats,
 } from "./components/OriginalRaindropDemo";
 import { RAIN_VISIBILITY_SLIDER } from "./rainVisibility";
+import {
+  DEFAULT_RAIN_TUNING,
+  RAIN_TUNING_CONTROLS,
+  type RainTuning,
+  type RainTuningControl,
+  type RainTuningGroup,
+} from "./rainTuning";
 
 const projects = [
   { number: "01", name: "Rain Window", tone: "rain study" },
@@ -28,6 +36,13 @@ const projects = [
 
 const timeCycle: TimeOfDay[] = ["dusk", "night", "morning", "midday"];
 const liveRainRefreshMs = 22;
+const tuningGroupLabels: Record<RainTuningGroup, string> = {
+  droplets: "Droplets",
+  mist: "Mist",
+  render: "Render",
+  shader: "Shader",
+  simulation: "Simulation",
+};
 
 const initialBackgroundMode: BackgroundMode =
   new URLSearchParams(window.location.search).get("mode") === "demo"
@@ -56,8 +71,15 @@ export default function App() {
   const [rainVisibility, setRainVisibility] = useState<number>(
     RAIN_VISIBILITY_SLIDER.defaultValue
   );
+  const [rainTuning, setRainTuning] = useState<RainTuning>(DEFAULT_RAIN_TUNING);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>("morning");
   const showComparison = initialCompareMode && backgroundMode === "street";
+  const handleRainTuningChange = useCallback(
+    (key: keyof RainTuning, value: number) => {
+      setRainTuning((current) => ({ ...current, [key]: value }));
+    },
+    []
+  );
 
   return (
     <main
@@ -71,6 +93,7 @@ export default function App() {
         <RainComparison
           paused={paused}
           quality={quality}
+          rainTuning={rainTuning}
           rainVisibility={rainVisibility}
           timeOfDay={timeOfDay}
         />
@@ -81,6 +104,7 @@ export default function App() {
             nativeGlass
             paused={paused}
             quality={quality}
+            rainTuning={rainTuning}
             rainVisibility={rainVisibility}
             timeOfDay={timeOfDay}
           />
@@ -181,18 +205,88 @@ export default function App() {
           />
         </label>
       </div>
+      <RainTuningPanel
+        onChange={handleRainTuningChange}
+        value={rainTuning}
+      />
     </main>
+  );
+}
+
+function RainTuningPanel({
+  onChange,
+  value,
+}: {
+  onChange: (key: keyof RainTuning, value: number) => void;
+  value: RainTuning;
+}) {
+  const groups = RAIN_TUNING_CONTROLS.reduce(
+    (grouped, control) => {
+      grouped[control.group].push(control);
+      return grouped;
+    },
+    {
+      droplets: [],
+      mist: [],
+      render: [],
+      shader: [],
+      simulation: [],
+    } as Record<RainTuningGroup, RainTuningControl[]>
+  );
+
+  return (
+    <details className="tuning-panel" open>
+      <summary title="Native right-side rain and glass tuning controls">
+        <SlidersHorizontal size={16} aria-hidden="true" />
+        <span>Native Variables</span>
+      </summary>
+      <div className="tuning-panel-body">
+        {(Object.keys(groups) as RainTuningGroup[]).map((group) => (
+          <section className="tuning-group" key={group}>
+            <h2>{tuningGroupLabels[group]}</h2>
+            {groups[group].map((control) => (
+              <label
+                className="tuning-control"
+                key={control.key}
+                title={control.description}
+              >
+                <span className="tuning-label">
+                  <span>{control.label}</span>
+                  <span className="tuning-help" aria-label={control.description}>
+                    ?
+                  </span>
+                </span>
+                <input
+                  aria-label={control.label}
+                  max={control.max}
+                  min={control.min}
+                  onChange={(event) =>
+                    onChange(control.key, Number(event.target.value))
+                  }
+                  step={control.step}
+                  type="range"
+                  value={value[control.key]}
+                />
+                <output>{formatTuningValue(value[control.key])}</output>
+              </label>
+            ))}
+          </section>
+        ))}
+      </div>
+    </details>
   );
 }
 
 function RainComparison({
   paused,
   quality,
+  rainTuning,
   rainVisibility,
   timeOfDay,
 }: {
   paused: boolean;
   quality: RenderQuality;
+  rainTuning: RainTuning;
   rainVisibility: number;
   timeOfDay: TimeOfDay;
 }) {
@@ -265,6 +359,7 @@ function RainComparison({
           onBenchmark={handleRainBenchmark}
           paused={paused}
           quality={quality}
+          rainTuning={rainTuning}
           rainVisibility={rainVisibility}
           timeOfDay={timeOfDay}
         />
@@ -288,6 +383,7 @@ function RainComparison({
           onBenchmark={handleRainBenchmark}
           paused={paused}
           quality={quality}
+          rainTuning={rainTuning}
           rainVisibility={rainVisibility}
           timeOfDay={timeOfDay}
         />
@@ -302,6 +398,18 @@ function formatMetric(value: number | undefined, digits = 1) {
   return value === undefined || Number.isNaN(value)
     ? "..."
     : value.toFixed(digits);
+}
+
+function formatTuningValue(value: number) {
+  if (Math.abs(value) >= 100) {
+    return value.toFixed(0);
+  }
+
+  if (Math.abs(value) >= 10) {
+    return value.toFixed(1);
+  }
+
+  return value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 function BenchmarkPanel({

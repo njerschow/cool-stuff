@@ -5,8 +5,8 @@ import raindropTextureUrl from "../assets/raindrop.png";
 import {
   RAIN_VISIBILITY_RANGE,
   RAIN_VISIBILITY_SLIDER,
-  RAIN_VISIBILITY_SNAPSHOT_OVERLAY,
 } from "../rainVisibility";
+import type { RainTuning } from "../rainTuning";
 import { RaindropPaneSimulation } from "../simulation/RaindropPaneSimulation";
 
 export type BackgroundMode = "demo" | "street";
@@ -54,7 +54,6 @@ const ROAD_DASH_COUNT = 34;
 const BUILDING_DEPTH_COUNT = 17;
 const STREET_LIGHT_COUNT = 13;
 const SHOP_GLOW_COUNT = 20;
-const RAINDROP_FX_FRAME_DELTA = 0.03;
 
 const qualitySettings = {
   balanced: {
@@ -199,6 +198,11 @@ function withSeededRandom<T>(seed: string, run: () => T) {
   }
 }
 
+const tuningRange = (a: number, b: number): [number, number] =>
+  a <= b ? [a, b] : [b, a];
+
+const tuningInt = (value: number, min = 0) => Math.max(min, Math.round(value));
+
 const glassFragmentShader = `
 uniform sampler2D uBackground;
 uniform sampler2D uRainMap;
@@ -209,6 +213,9 @@ uniform float uRainVisibilityMin;
 uniform float uRainVisibilityRange;
 uniform float uRainOverlayOpacityBase;
 uniform float uRainOverlayOpacityScale;
+uniform vec2 uRainMaskSmooth;
+uniform vec2 uRefractParams;
+uniform vec2 uDiffuseParams;
 varying vec2 vUv;
 
 void main() {
@@ -218,8 +225,8 @@ void main() {
     raindrop.rgb + dropletMap.rgb - vec3(2.0) * raindrop.rgb * dropletMap.rgb,
     max(dropletMap.a, raindrop.a)
   );
-  float mask = smoothstep(0.96, 0.99, compose.a);
-  vec2 refractUv = vUv - (compose.xy - vec2(0.5)) * vec2(compose.b * 0.6 + 0.4);
+  float mask = smoothstep(uRainMaskSmooth.x, uRainMaskSmooth.y, compose.a);
+  vec2 refractUv = vUv - (compose.xy - vec2(0.5)) * vec2(compose.b * uRefractParams.y + uRefractParams.x);
   vec3 normal = normalize(vec3((compose.xy - vec2(0.5)) * vec2(2.0), 1.0));
   vec3 lightDir = vec3(-1.0, 1.0, 2.0) - 0.0 * vec3(vUv.xy, 0.0);
   vec3 viewDir = vec3(0.0, 0.0, 1.0);
@@ -230,7 +237,7 @@ void main() {
   float overlayOpacity = uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale;
 
   vec4 color = texture2D(uBackground, refractUv);
-  color.rgb += vec3((lambert - 0.8) * 0.2);
+  color.rgb += vec3((lambert - uDiffuseParams.x) * uDiffuseParams.y);
   color.rgb += vec3(specular) * vec3(0.0);
   gl_FragColor = vec4(color.rgb, mask * overlayOpacity);
   #include <colorspace_fragment>
@@ -245,14 +252,16 @@ uniform float uRainVisibilityMin;
 uniform float uRainVisibilityRange;
 uniform float uRainOverlayOpacityBase;
 uniform float uRainOverlayOpacityScale;
+uniform float uMistAlpha;
+uniform float uMistBrightness;
 varying vec2 vUv;
 
 void main() {
   vec4 color = texture2D(uMistBackground, vUv);
-  color.rgb += vec3(0.01);
+  color.rgb += vec3(uMistBrightness);
   float normalizedVisibility = clamp((uRainVisibility - uRainVisibilityMin) / uRainVisibilityRange, 0.0, 1.0);
   float overlayOpacity = uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale;
-  color.a = texture2D(uMistTex, vUv).r * overlayOpacity * 0.08;
+  color.a = texture2D(uMistTex, vUv).r * overlayOpacity * uMistAlpha;
   gl_FragColor = color;
   #include <colorspace_fragment>
 }
@@ -409,6 +418,7 @@ export function RainWindow({
   onBenchmark,
   paused,
   quality,
+  rainTuning,
   rainVisibility,
   timeOfDay,
 }: {
@@ -418,6 +428,7 @@ export function RainWindow({
   onBenchmark?: (id: string, stats: RainWindowBenchmarkStats) => void;
   paused: boolean;
   quality: RenderQuality;
+  rainTuning: RainTuning;
   rainVisibility: number;
   timeOfDay: TimeOfDay;
 }) {
@@ -592,14 +603,32 @@ export function RainWindow({
         uMistTex: { value: mistTarget.texture },
         uRainMap: { value: raindropTarget.texture },
         uRainOverlayOpacityBase: {
-          value: RAIN_VISIBILITY_SNAPSHOT_OVERLAY.base,
+          value: rainTuning.rainOverlayBase,
         },
         uRainOverlayOpacityScale: {
-          value: RAIN_VISIBILITY_SNAPSHOT_OVERLAY.scale,
+          value: rainTuning.rainOverlayScale,
+        },
+        uDiffuseParams: {
+          value: new THREE.Vector2(
+            rainTuning.diffuseMidpoint,
+            rainTuning.diffuseStrength
+          ),
+        },
+        uRainMaskSmooth: {
+          value: new THREE.Vector2(
+            rainTuning.rainMaskStart,
+            rainTuning.rainMaskEnd
+          ),
         },
         uRainVisibility: { value: rainVisibilityRef.current },
         uRainVisibilityMin: { value: RAIN_VISIBILITY_SLIDER.min },
         uRainVisibilityRange: { value: RAIN_VISIBILITY_RANGE },
+        uRefractParams: {
+          value: new THREE.Vector2(
+            rainTuning.refractBase,
+            rainTuning.refractScale
+          ),
+        },
       },
       vertexShader: glassVertexShader,
     });
@@ -644,11 +673,13 @@ export function RainWindow({
       uniforms: {
         uMistBackground: { value: mistBackgroundTargetA.texture },
         uMistTex: { value: mistTarget.texture },
+        uMistAlpha: { value: rainTuning.mistAlpha },
+        uMistBrightness: { value: rainTuning.mistBrightness },
         uRainOverlayOpacityBase: {
-          value: RAIN_VISIBILITY_SNAPSHOT_OVERLAY.base,
+          value: rainTuning.rainOverlayBase,
         },
         uRainOverlayOpacityScale: {
-          value: RAIN_VISIBILITY_SNAPSHOT_OVERLAY.scale,
+          value: rainTuning.rainOverlayScale,
         },
         uRainVisibility: { value: rainVisibilityRef.current },
         uRainVisibilityMin: { value: RAIN_VISIBILITY_SLIDER.min },
@@ -698,15 +729,35 @@ export function RainWindow({
     mistScene.add(mistQuad);
 
     const paneSimulation = new RaindropPaneSimulation({
-      initialFillRatio: 0,
-      initialSpread: 0.5,
-      spawnLimit: settings.spawnLimit,
-      spawnSize: [60, 100],
-      trailDistance: [20, 30],
-      trailDropDensity: 0.2,
-      trailDropSize: [0.3, 0.5],
-      trailSpread: 0.6,
-      velocitySpread: 0.3,
+      colliderSize: rainTuning.colliderSize,
+      evaporate: rainTuning.evaporate,
+      gravity: rainTuning.gravity,
+      initialFillRatio: rainTuning.initialFillRatio,
+      initialSpread: rainTuning.initialSpread,
+      motionInterval: tuningRange(
+        rainTuning.motionIntervalMin,
+        rainTuning.motionIntervalMax
+      ),
+      shrinkRate: rainTuning.shrinkRate,
+      slipRate: rainTuning.slipRate,
+      spawnInterval: tuningRange(
+        rainTuning.spawnIntervalMin,
+        rainTuning.spawnIntervalMax
+      ),
+      spawnLimit: tuningInt(rainTuning.spawnLimit, 1),
+      spawnSize: tuningRange(rainTuning.spawnSizeMin, rainTuning.spawnSizeMax),
+      trailDistance: tuningRange(
+        rainTuning.trailDistanceMin,
+        rainTuning.trailDistanceMax
+      ),
+      trailDropDensity: rainTuning.trailDropDensity,
+      trailDropSize: tuningRange(
+        rainTuning.trailDropSizeMin,
+        rainTuning.trailDropSizeMax
+      ),
+      trailSpread: rainTuning.trailSpread,
+      velocitySpread: rainTuning.velocitySpread,
+      xShifting: tuningRange(rainTuning.xShiftMin, rainTuning.xShiftMax),
     });
     const dropScene = new THREE.Scene();
     const dropCamera = new THREE.OrthographicCamera(0, 1, 0, 1, -1, 1);
@@ -716,8 +767,8 @@ export function RainWindow({
     raindropTexture.generateMipmaps = false;
     raindropTexture.magFilter = THREE.LinearFilter;
     raindropTexture.minFilter = THREE.LinearFilter;
-    const maxDropInstances = 3000;
-    const maxMicrodropInstances = 80;
+    const maxDropInstances = tuningInt(rainTuning.maxDropInstances, 1);
+    const maxMicrodropInstances = tuningInt(rainTuning.maxMicrodropInstances);
     const dropGeometry = new THREE.PlaneGeometry(1, 1);
     const instanceSize = new THREE.InstancedBufferAttribute(
       new Float32Array(maxDropInstances),
@@ -830,8 +881,9 @@ export function RainWindow({
 
       const targetWidth = Math.max(1, Math.floor(safeWidth * pixelRatio));
       const targetHeight = Math.max(1, Math.floor(safeHeight * pixelRatio));
-      const rainWidth = Math.max(1, Math.floor(targetWidth * settings.raindropMapScale));
-      const rainHeight = Math.max(1, Math.floor(targetHeight * settings.raindropMapScale));
+      const rainScale = settings.raindropMapScale * rainTuning.rainMapScale;
+      const rainWidth = Math.max(1, Math.floor(targetWidth * rainScale));
+      const rainHeight = Math.max(1, Math.floor(targetHeight * rainScale));
       targetMegapixels = (targetWidth * targetHeight) / 1_000_000;
       rainMapMegapixels = (rainWidth * rainHeight) / 1_000_000;
 
@@ -888,7 +940,10 @@ export function RainWindow({
         return 0;
       }
 
-      const count = Math.min(maxMicrodropInstances, Math.floor(500 * rainDelta));
+      const count = Math.min(
+        maxMicrodropInstances,
+        Math.floor(rainTuning.microdropRate * rainDelta)
+      );
       microdropMesh.count = count;
       microdropMaterial.uniforms.uSpawnRect.value.set(
         0,
@@ -896,8 +951,16 @@ export function RainWindow({
         Math.max(1, raindropTarget.width),
         rainMapHeight
       );
-      microdropMaterial.uniforms.uSizeRange.value.set(10, 30);
-      microdropMaterial.uniforms.uSeed.value = Math.random() * 133;
+      const [microdropSizeMin, microdropSizeMax] = tuningRange(
+        rainTuning.microdropSizeMin,
+        rainTuning.microdropSizeMax
+      );
+      microdropMaterial.uniforms.uSizeRange.value.set(
+        microdropSizeMin,
+        microdropSizeMax
+      );
+      microdropMaterial.uniforms.uSeed.value =
+        Math.random() * rainTuning.microdropSeedMax;
 
       return count;
     };
@@ -1009,7 +1072,7 @@ export function RainWindow({
       const rawDelta = Math.min(clock.getDelta(), 0.04);
       const paused = pausedRef.current;
       const delta = paused ? 0 : rawDelta * (reducedMotion ? 0.28 : 1);
-      const rainDelta = nativeGlass && !paused ? RAINDROP_FX_FRAME_DELTA : 0;
+      const rainDelta = nativeGlass && !paused ? rainTuning.rainFrameDelta : 0;
       const visibleRain = rainVisibilityRef.current;
       sceneTime += delta;
       rainTotalTime += paused ? 0 : rawDelta;
@@ -1043,8 +1106,16 @@ export function RainWindow({
       }
 
       copyToGlassTarget();
-      renderBlur(frostTargetB, 3, frostTargetA);
-      renderBlur(frostTargetB, 4, mistBackgroundTargetA);
+      renderBlur(
+        frostTargetB,
+        tuningInt(rainTuning.backgroundBlurSteps),
+        frostTargetA
+      );
+      renderBlur(
+        frostTargetB,
+        tuningInt(rainTuning.mistBlurSteps),
+        mistBackgroundTargetA
+      );
 
       const microdropCount = updateMicrodropMesh(rainDelta);
       renderer.setRenderTarget(raindropTarget);
@@ -1057,7 +1128,8 @@ export function RainWindow({
         renderer.render(microdropScene, dropCamera);
       }
       if (rainDelta > 0) {
-        mistAddMaterial.uniforms.uAmount.value = rainDelta / 16.5;
+        mistAddMaterial.uniforms.uAmount.value =
+          rainDelta / Math.max(0.001, rainTuning.mistAddDivisor);
         renderer.setRenderTarget(mistTarget);
         mistQuad.material = mistAddMaterial;
         renderer.render(mistScene, screenCamera);
@@ -1067,8 +1139,12 @@ export function RainWindow({
       if (dropMesh.count > 0) {
         mistQuad.material = mistEraseMaterial;
         mistEraseMaterial.uniforms.uRainMap.value = raindropTarget.texture;
-        mistEraseMaterial.uniforms.uEraserSmooth.value.set(0.93, 1);
-        mistEraseMaterial.uniforms.uEraseStrength.value = 1;
+        mistEraseMaterial.uniforms.uEraserSmooth.value.set(
+          rainTuning.eraserStart,
+          rainTuning.eraserEnd
+        );
+        mistEraseMaterial.uniforms.uEraseStrength.value =
+          rainTuning.eraserStrength;
         renderer.setRenderTarget(mistTarget);
         renderer.render(mistScene, screenCamera);
         renderer.setRenderTarget(dropletTarget);
@@ -1128,7 +1204,7 @@ export function RainWindow({
         }
       });
     };
-  }, [backgroundMode, nativeGlass, quality, timeOfDay]);
+  }, [backgroundMode, nativeGlass, quality, rainTuning, timeOfDay]);
 
   return (
     <div

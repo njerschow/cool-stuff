@@ -121,6 +121,35 @@ test("main street experience uses the same-context native glass path", async () 
   assert.doesNotMatch(appSource, /<RealtimeGlareOverlay/);
 });
 
+test("native rain variables are exposed through the tuning panel", async () => {
+  const appSource = await readFile(path.join(root, "src/App.tsx"), "utf8");
+  const tuningSource = await readFile(path.join(root, "src/rainTuning.ts"), "utf8");
+
+  assert.match(appSource, /<RainTuningPanel/);
+  assert.match(appSource, /RAIN_TUNING_CONTROLS/);
+  assert.match(appSource, /className="tuning-help"/);
+  assert.match(appSource, /title=\{control\.description\}/);
+  assert.match(tuningSource, /export const DEFAULT_RAIN_TUNING: RainTuning = \{/);
+  assert.match(tuningSource, /export const RAIN_TUNING_CONTROLS: RainTuningControl\[] = \[/);
+  for (const key of [
+    "rainFrameDelta",
+    "rainMapScale",
+    "rainMaskStart",
+    "refractBase",
+    "mistAlpha",
+    "mistAddDivisor",
+    "eraserStart",
+    "microdropRate",
+    "spawnLimit",
+    "gravity",
+    "trailDropDensity",
+    "velocitySpread",
+  ]) {
+    assert.match(tuningSource, new RegExp(`${key}:`));
+    assert.match(tuningSource, new RegExp(`key: "${key}"`));
+  }
+});
+
 test("native shader exposes the same overlay curve as uniforms", async () => {
   const source = await readFile(
     path.join(root, "src/components/RainWindow.tsx"),
@@ -139,9 +168,8 @@ test("native shader exposes the same overlay curve as uniforms", async () => {
     source,
     /gl_FragColor = vec4\(color\.rgb, mask \* overlayOpacity\);/
   );
-  assert.match(source, /color\.a = texture2D\(uMistTex, vUv\)\.r \* overlayOpacity \* 0\.08;/);
+  assert.match(source, /color\.a = texture2D\(uMistTex, vUv\)\.r \* overlayOpacity \* uMistAlpha;/);
   assert.doesNotMatch(source, /normalizeRainVisibility\(visibleRain\)/);
-  assert.doesNotMatch(source, /microdropRate:/);
   assert.doesNotMatch(source, /mistRecoveryRate:/);
   assert.doesNotMatch(source, /trailEraseStrength:/);
   assert.doesNotMatch(source, /visibilityGain/);
