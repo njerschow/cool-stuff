@@ -6,6 +6,7 @@ import {
   RAIN_VISIBILITY_RANGE,
   RAIN_VISIBILITY_SLIDER,
   RAIN_VISIBILITY_SNAPSHOT_OVERLAY,
+  normalizeRainVisibility,
 } from "../rainVisibility";
 import { RaindropPaneSimulation } from "../simulation/RaindropPaneSimulation";
 
@@ -203,6 +204,7 @@ uniform sampler2D uBackground;
 uniform sampler2D uRainMap;
 uniform sampler2D uDropletMap;
 uniform sampler2D uMistTex;
+uniform sampler2D uTrailMap;
 uniform float uRainVisibility;
 uniform float uRainVisibilityMin;
 uniform float uRainVisibilityRange;
@@ -218,7 +220,7 @@ void main() {
     max(dropletMap.a, raindrop.a)
   );
   float mask = smoothstep(0.96, 0.99, compose.a);
-  float coreMask = smoothstep(0.985, 0.998, compose.a);
+  float coreMask = smoothstep(0.975, 0.996, compose.a);
   vec2 refractUv = vUv - (compose.xy - vec2(0.5)) * vec2(compose.b * 0.6 + 0.4);
   vec3 normal = normalize(vec3((compose.xy - vec2(0.5)) * vec2(2.0), 1.0));
   vec3 lightDir = vec3(-1.0, 1.0, 2.0) - 0.0 * vec3(vUv.xy, 0.0);
@@ -227,12 +229,15 @@ void main() {
   float lambert = clamp(dot(normalize(lightDir), normal), 0.0, 1.0);
   float specular = pow(max(dot(normal, halfDir), 0.0), 256.0);
   float normalizedVisibility = clamp((uRainVisibility - uRainVisibilityMin) / uRainVisibilityRange, 0.0, 1.0);
-  float overlayOpacity = uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale;
+  float visibilityGain = mix(0.62, 1.2, normalizedVisibility);
+  float overlayOpacity = (uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale) * visibilityGain;
+  float trailMask = smoothstep(0.18, 0.72, texture2D(uTrailMap, vUv).a);
 
   vec4 color = texture2D(uBackground, refractUv);
+  color.rgb = mix(color.rgb, color.rgb + vec3(0.08), trailMask * 0.22);
   color.rgb += vec3((lambert - 0.8) * 0.2);
   color.rgb += vec3(specular) * vec3(0.0);
-  gl_FragColor = vec4(color.rgb, coreMask * overlayOpacity);
+  gl_FragColor = vec4(color.rgb, max(coreMask, trailMask * 0.035) * overlayOpacity);
   #include <colorspace_fragment>
 }
 `;
@@ -251,7 +256,8 @@ void main() {
   vec4 color = texture2D(uMistBackground, vUv);
   color.rgb += vec3(0.01);
   float normalizedVisibility = clamp((uRainVisibility - uRainVisibilityMin) / uRainVisibilityRange, 0.0, 1.0);
-  float overlayOpacity = uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale;
+  float visibilityGain = mix(0.62, 1.2, normalizedVisibility);
+  float overlayOpacity = (uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale) * visibilityGain;
   color.a = texture2D(uMistTex, vUv).r * overlayOpacity;
   gl_FragColor = color;
   #include <colorspace_fragment>
@@ -367,6 +373,20 @@ void main() {
   vec4 color = texture2D(uMainTex, vUv);
   color.rgb *= color.a;
   gl_FragColor = vec4(color.rg, 0.0, color.a);
+}
+`;
+
+const trailEraseMapFragmentShader = `
+varying vec2 vUv;
+varying float vSize;
+
+void main() {
+  vec2 p = vUv * 2.0 - 1.0;
+  float center = 1.0 - smoothstep(0.1, 0.72, abs(p.x));
+  float leadingFade = 1.0 - smoothstep(0.42, 1.0, p.y);
+  float tailFade = smoothstep(-1.0, -0.35, p.y);
+  float alpha = center * leadingFade * tailFade * vSize * 0.82;
+  gl_FragColor = vec4(vec3(alpha), alpha);
 }
 `;
 
@@ -545,6 +565,15 @@ export function RainWindow({
     dropletTarget.texture.magFilter = THREE.LinearFilter;
     dropletTarget.texture.minFilter = THREE.LinearFilter;
 
+    const trailEraseTarget = new THREE.WebGLRenderTarget(1, 1, {
+      depthBuffer: false,
+      stencilBuffer: false,
+    });
+    trailEraseTarget.texture.colorSpace = THREE.NoColorSpace;
+    trailEraseTarget.texture.generateMipmaps = false;
+    trailEraseTarget.texture.magFilter = THREE.LinearFilter;
+    trailEraseTarget.texture.minFilter = THREE.LinearFilter;
+
     const blurTargets = Array.from(
       { length: 4 },
       () =>
@@ -609,6 +638,7 @@ export function RainWindow({
         uRainVisibility: { value: rainVisibilityRef.current },
         uRainVisibilityMin: { value: RAIN_VISIBILITY_SLIDER.min },
         uRainVisibilityRange: { value: RAIN_VISIBILITY_RANGE },
+        uTrailMap: { value: trailEraseTarget.texture },
       },
       vertexShader: glassVertexShader,
     });
@@ -707,15 +737,15 @@ export function RainWindow({
     mistScene.add(mistQuad);
 
     const paneSimulation = new RaindropPaneSimulation({
-      initialFillRatio: 0,
+      initialFillRatio: 0.025,
       initialSpread: 0.34,
       spawnLimit: settings.spawnLimit,
       spawnSize: [36, 78],
-      trailDistance: [110, 190],
-      trailDropDensity: 0.1,
-      trailDropSize: [0.08, 0.16],
-      trailSpread: 0.18,
-      velocitySpread: 0.08,
+      trailDistance: [42, 78],
+      trailDropDensity: 0.16,
+      trailDropSize: [0.14, 0.24],
+      trailSpread: 0.28,
+      velocitySpread: 0.14,
     });
     const dropScene = new THREE.Scene();
     const dropCamera = new THREE.OrthographicCamera(0, 1, 0, 1, -1, 1);
@@ -727,9 +757,15 @@ export function RainWindow({
     raindropTexture.minFilter = THREE.LinearFilter;
     const maxDropInstances = 3000;
     const maxMicrodropInstances = 80;
+    const maxTrailInstances = 1400;
     const dropGeometry = new THREE.PlaneGeometry(1, 1);
     const instanceSize = new THREE.InstancedBufferAttribute(
       new Float32Array(maxDropInstances),
+      1
+    );
+    const trailGeometry = new THREE.PlaneGeometry(1, 1);
+    const trailStrength = new THREE.InstancedBufferAttribute(
+      new Float32Array(maxTrailInstances),
       1
     );
     const microdropIds = new Float32Array(maxMicrodropInstances);
@@ -741,6 +777,7 @@ export function RainWindow({
       "aDropId",
       new THREE.InstancedBufferAttribute(microdropIds, 1)
     );
+    trailGeometry.setAttribute("instanceSize", trailStrength);
     const dropMaterial = new THREE.ShaderMaterial({
       blending: THREE.CustomBlending,
       blendDst: THREE.OneMinusSrcColorFactor,
@@ -793,7 +830,26 @@ export function RainWindow({
     microdropMesh.frustumCulled = false;
     const microdropScene = new THREE.Scene();
     microdropScene.add(microdropMesh);
+    const trailEraseMaterial = new THREE.ShaderMaterial({
+      blending: THREE.NormalBlending,
+      depthTest: false,
+      depthWrite: false,
+      fragmentShader: trailEraseMapFragmentShader,
+      toneMapped: false,
+      transparent: true,
+      vertexShader: raindropMapVertexShader,
+    });
+    const trailEraseMesh = new THREE.InstancedMesh(
+      trailGeometry,
+      trailEraseMaterial,
+      maxTrailInstances
+    );
+    trailEraseMesh.frustumCulled = false;
+    const trailEraseScene = new THREE.Scene();
+    trailEraseScene.add(trailEraseMesh);
     const dropMatrix = new THREE.Matrix4();
+    const trailQuaternion = new THREE.Quaternion();
+    const zAxis = new THREE.Vector3(0, 0, 1);
 
     const cars: Car[] = [];
     const dynamicDisposables: Array<THREE.Object3D | THREE.Material | THREE.BufferGeometry> = [];
@@ -851,10 +907,14 @@ export function RainWindow({
       raindropTarget.setSize(rainWidth, rainHeight);
       mistTarget.setSize(rainWidth, rainHeight);
       dropletTarget.setSize(rainWidth, rainHeight);
+      trailEraseTarget.setSize(rainWidth, rainHeight);
       renderer.setRenderTarget(mistTarget);
       renderer.setClearColor(0x737373, 0.45);
       renderer.clear(true, true, true);
       renderer.setRenderTarget(dropletTarget);
+      renderer.setClearColor(0x000000, 0);
+      renderer.clear(true, true, true);
+      renderer.setRenderTarget(trailEraseTarget);
       renderer.setClearColor(0x000000, 0);
       renderer.clear(true, true, true);
       renderer.setRenderTarget(null);
@@ -915,6 +975,34 @@ export function RainWindow({
 
       if (count > 0) {
         microdropMesh.instanceMatrix.needsUpdate = true;
+      }
+
+      return count;
+    };
+
+    const updateTrailEraseMesh = (strengthScale: number) => {
+      const trails = paneSimulation.activeRenderTrails;
+      const count = Math.min(trails.length, maxTrailInstances);
+      trailEraseMesh.count = count;
+
+      for (let index = 0; index < count; index += 1) {
+        const trail = trails[index];
+        const width = Math.max(5, trail.width * 0.86);
+        const length = Math.max(12, trail.length * 0.66);
+        trailQuaternion.setFromAxisAngle(zAxis, trail.angle);
+        dropPosition.set(trail.x, trail.y, 0);
+        dropScale.set(width, length, 1);
+        dropMatrix.compose(dropPosition, trailQuaternion, dropScale);
+        trailEraseMesh.setMatrixAt(index, dropMatrix);
+        trailStrength.setX(
+          index,
+          Math.min(1, trail.strength * strengthScale)
+        );
+      }
+
+      if (count > 0) {
+        trailEraseMesh.instanceMatrix.needsUpdate = true;
+        trailStrength.needsUpdate = true;
       }
 
       return count;
@@ -1028,6 +1116,13 @@ export function RainWindow({
       const delta = pausedRef.current ? 0 : rawDelta * (reducedMotion ? 0.28 : 1);
       const rainDelta =
         nativeGlass && delta > 0 ? Math.min(delta * 1.65, 0.05) : 0;
+      const visibleRain = rainVisibilityRef.current;
+      const rainVisibilityAmount = normalizeRainVisibility(visibleRain);
+      const nativeRainResponse = {
+        microdropRate: 0.58 + rainVisibilityAmount * 0.92,
+        mistRecoveryRate: 0.74 + rainVisibilityAmount * 0.72,
+        trailEraseStrength: 0.48 + rainVisibilityAmount * 0.42,
+      };
       sceneTime += delta;
 
       if (rainDelta > 0) {
@@ -1059,10 +1154,12 @@ export function RainWindow({
       }
 
       copyToGlassTarget();
-      renderBlur(frostTargetB, 3, frostTargetA);
+      renderBlur(frostTargetB, 2, frostTargetA);
       renderBlur(frostTargetB, 4, mistBackgroundTargetA);
 
-      const microdropCount = updateMicrodropMesh(rainDelta);
+      const microdropCount = updateMicrodropMesh(
+        rainDelta * nativeRainResponse.microdropRate
+      );
       renderer.setRenderTarget(raindropTarget);
       renderer.setClearColor(0x000000, 0);
       renderer.clear(true, true, true);
@@ -1073,25 +1170,42 @@ export function RainWindow({
         renderer.render(microdropScene, dropCamera);
       }
       if (rainDelta > 0) {
-        mistAddMaterial.uniforms.uAmount.value = rainDelta / 6.5;
+        mistAddMaterial.uniforms.uAmount.value =
+          (rainDelta / 6.5) * nativeRainResponse.mistRecoveryRate;
         renderer.setRenderTarget(mistTarget);
         mistQuad.material = mistAddMaterial;
         renderer.render(mistScene, screenCamera);
       }
       renderer.setRenderTarget(raindropTarget);
       renderer.render(dropScene, dropCamera);
-      if (rainDelta > 0 || dropMesh.count > 0) {
+      renderer.setRenderTarget(trailEraseTarget);
+      renderer.setClearColor(0x000000, 0);
+      renderer.clear(true, true, true);
+      const trailEraseCount =
+        rainDelta > 0
+          ? updateTrailEraseMesh(nativeRainResponse.trailEraseStrength)
+          : 0;
+      if (trailEraseCount > 0) {
+        renderer.render(trailEraseScene, dropCamera);
+      }
+      if (trailEraseCount > 0) {
         mistQuad.material = mistEraseMaterial;
-        mistEraseMaterial.uniforms.uEraseStrength.value = 0;
+        mistEraseMaterial.uniforms.uRainMap.value = trailEraseTarget.texture;
+        mistEraseMaterial.uniforms.uEraserSmooth.value.set(0.12, 0.74);
+        mistEraseMaterial.uniforms.uEraseStrength.value = 0.56;
         renderer.setRenderTarget(mistTarget);
         renderer.render(mistScene, screenCamera);
+      }
+      if (dropMesh.count > 0) {
+        mistQuad.material = mistEraseMaterial;
+        mistEraseMaterial.uniforms.uRainMap.value = raindropTarget.texture;
+        mistEraseMaterial.uniforms.uEraserSmooth.value.set(0.985, 1);
         mistEraseMaterial.uniforms.uEraseStrength.value = 1;
         renderer.setRenderTarget(dropletTarget);
         renderer.render(mistScene, screenCamera);
       }
       renderer.autoClear = previousAutoClear;
 
-      const visibleRain = rainVisibilityRef.current;
       glassMaterial.uniforms.uRainVisibility.value = visibleRain;
       mistComposeMaterial.uniforms.uRainVisibility.value = visibleRain;
       renderer.setRenderTarget(null);
@@ -1121,6 +1235,7 @@ export function RainWindow({
       raindropTarget.dispose();
       mistTarget.dispose();
       dropletTarget.dispose();
+      trailEraseTarget.dispose();
       demoTexture.dispose();
       demoBackgroundQuad.geometry.dispose();
       demoBackgroundMaterial.dispose();
@@ -1135,8 +1250,10 @@ export function RainWindow({
       mistAddMaterial.dispose();
       mistEraseMaterial.dispose();
       dropGeometry.dispose();
+      trailGeometry.dispose();
       dropMaterial.dispose();
       microdropMaterial.dispose();
+      trailEraseMaterial.dispose();
       renderer.dispose();
       renderer.domElement.remove();
       dynamicDisposables.forEach((item) => {

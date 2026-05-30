@@ -125,13 +125,21 @@ test("native shader exposes the same overlay curve as uniforms", async () => {
   assert.match(source, /uniform float uRainOverlayOpacityScale;/);
   assert.match(
     source,
-    /float overlayOpacity = uRainOverlayOpacityBase \+ normalizedVisibility \* uRainOverlayOpacityScale;/
+    /float visibilityGain = mix\(0\.62, 1\.2, normalizedVisibility\);/
   );
   assert.match(
     source,
-    /gl_FragColor = vec4\(color\.rgb, coreMask \* overlayOpacity\);/
+    /float overlayOpacity = \(uRainOverlayOpacityBase \+ normalizedVisibility \* uRainOverlayOpacityScale\) \* visibilityGain;/
+  );
+  assert.match(
+    source,
+    /gl_FragColor = vec4\(color\.rgb, max\(coreMask, trailMask \* 0\.035\) \* overlayOpacity\);/
   );
   assert.match(source, /color\.a = texture2D\(uMistTex, vUv\)\.r \* overlayOpacity;/);
+  assert.match(source, /normalizeRainVisibility\(visibleRain\)/);
+  assert.match(source, /microdropRate: 0\.58 \+ rainVisibilityAmount \* 0\.92,/);
+  assert.match(source, /mistRecoveryRate: 0\.74 \+ rainVisibilityAmount \* 0\.72,/);
+  assert.match(source, /trailEraseStrength: 0\.48 \+ rainVisibilityAmount \* 0\.42,/);
   assert.doesNotMatch(source, /0\.72 \+ normalizedVisibility \* 0\.22/);
   assert.doesNotMatch(source, /overlayOpacity \* mix\(1\.0, 0\.82, mask\)/);
 });
