@@ -17,7 +17,6 @@ import {
   OriginalRaindropDemo,
   OriginalRaindropOverlay,
   type RaindropFxBenchmarkStats,
-  RealtimeGlareOverlay,
 } from "./components/OriginalRaindropDemo";
 import { RAIN_VISIBILITY_SLIDER } from "./rainVisibility";
 
@@ -79,20 +78,12 @@ export default function App() {
         <>
           <RainWindow
             backgroundMode={backgroundMode}
-            nativeGlass={false}
+            nativeGlass
             paused={paused}
             quality={quality}
             rainVisibility={rainVisibility}
             timeOfDay={timeOfDay}
           />
-          <OriginalRaindropOverlay
-            captureIntervalMs={liveRainRefreshMs}
-            effectScale={2.35}
-            sourceSelector=".street-canvas"
-            variant="snapshot"
-            visibility={rainVisibility}
-          />
-          <RealtimeGlareOverlay sourceSelector=".street-canvas" />
         </>
       )}
 

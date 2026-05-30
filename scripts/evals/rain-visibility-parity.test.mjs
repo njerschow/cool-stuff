@@ -113,6 +113,14 @@ test("components share the slider constants instead of drifting locally", async 
   assert.match(overlaySource, /getBlendRainDropOpacity/);
 });
 
+test("main street experience uses the same-context native glass path", async () => {
+  const appSource = await readFile(path.join(root, "src/App.tsx"), "utf8");
+
+  assert.match(appSource, /<RainWindow\n            backgroundMode=\{backgroundMode\}\n            nativeGlass\n            paused=\{paused\}/);
+  assert.doesNotMatch(appSource, /sourceSelector="\.street-canvas"/);
+  assert.doesNotMatch(appSource, /<RealtimeGlareOverlay/);
+});
+
 test("native shader exposes the same overlay curve as uniforms", async () => {
   const source = await readFile(
     path.join(root, "src/components/RainWindow.tsx"),
