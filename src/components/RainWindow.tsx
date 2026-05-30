@@ -508,15 +508,6 @@ export function RainWindow({
     mistBackgroundTargetA.texture.magFilter = THREE.LinearFilter;
     mistBackgroundTargetA.texture.minFilter = THREE.LinearFilter;
 
-    const mistBackgroundTargetB = new THREE.WebGLRenderTarget(1, 1, {
-      depthBuffer: false,
-      stencilBuffer: false,
-    });
-    mistBackgroundTargetB.texture.colorSpace = THREE.NoColorSpace;
-    mistBackgroundTargetB.texture.generateMipmaps = false;
-    mistBackgroundTargetB.texture.magFilter = THREE.LinearFilter;
-    mistBackgroundTargetB.texture.minFilter = THREE.LinearFilter;
-
     const raindropTarget = new THREE.WebGLRenderTarget(1, 1, {
       depthBuffer: false,
       stencilBuffer: false,
@@ -848,7 +839,6 @@ export function RainWindow({
       frostTargetA.setSize(rainWidth, rainHeight);
       frostTargetB.setSize(rainWidth, rainHeight);
       mistBackgroundTargetA.setSize(rainWidth, rainHeight);
-      mistBackgroundTargetB.setSize(rainWidth, rainHeight);
       raindropTarget.setSize(rainWidth, rainHeight);
       mistTarget.setSize(rainWidth, rainHeight);
       dropletTarget.setSize(rainWidth, rainHeight);
@@ -1110,7 +1100,6 @@ export function RainWindow({
       frostTargetA.dispose();
       frostTargetB.dispose();
       mistBackgroundTargetA.dispose();
-      mistBackgroundTargetB.dispose();
       blurTargets.forEach((blurTarget) => blurTarget.dispose());
       raindropTarget.dispose();
       mistTarget.dispose();

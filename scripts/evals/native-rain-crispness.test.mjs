@@ -47,6 +47,7 @@ test("native compositor draws RaindropFX layers instead of one opaque pane", asy
   assert.match(source, /color\.a = texture2D\(uMistTex, vUv\)\.r \* overlayOpacity \* 0\.08;/);
   assert.match(source, /const mistComposeMaterial = new THREE\.ShaderMaterial\(\{/);
   assert.match(source, /copyToGlassTarget\(\);\n      renderBlur\(frostTargetB, 3, frostTargetA\);\n      renderBlur\(frostTargetB, 4, mistBackgroundTargetA\);/);
+  assert.doesNotMatch(source, /mistBackgroundTargetB/);
   assert.match(
     source,
     /copyMaterial\.uniforms\.uImage\.value = frostTargetA\.texture;\n      renderPostMaterial\(copyMaterial, null\);\n      renderPostMaterial\(mistComposeMaterial, null\);\n      renderer\.render\(screenScene, screenCamera\);/
