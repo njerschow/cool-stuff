@@ -95,7 +95,9 @@ test("falling streaks use the RaindropFX mist-erasure loop", async () => {
   assert.doesNotMatch(source, /const updateTrailEraseMesh = /);
   assert.doesNotMatch(source, /renderer\.render\(trailEraseScene, dropCamera\);/);
   assert.match(source, /renderer\.setRenderTarget\(raindropTarget\);\n      renderer\.setClearColor\(0x000000, 0\);\n      renderer\.clear\(true, true, true\);[\s\S]+renderer\.render\(dropScene, dropCamera\);/);
-  assert.match(source, /const rainDelta =\n        nativeGlass && delta > 0 \? Math\.min\(delta \* 1\.65, 0\.05\) : 0;/);
+  assert.match(source, /const RAINDROP_FX_FRAME_DELTA = 0\.03;/);
+  assert.match(source, /const rainDelta = nativeGlass && !paused \? RAINDROP_FX_FRAME_DELTA : 0;/);
+  assert.match(source, /paneSimulation\.update\(rainDelta, rainTotalTime\);/);
   assert.match(source, /const mistTarget = new THREE\.WebGLRenderTarget\(1, 1, \{\n      depthBuffer: false,\n      stencilBuffer: false,\n      type: THREE\.HalfFloatType,/);
   assert.match(source, /uEraserSmooth: \{ value: new THREE\.Vector2\(0\.93, 1\) \},/);
   assert.match(source, /uEraseStrength: \{ value: 1 \},/);
@@ -121,6 +123,8 @@ test("falling streaks use the RaindropFX mist-erasure loop", async () => {
   assert.match(simulation, /get activeRenderTrails\(\): RenderTrail\[\] \{/);
   assert.match(simulation, /private getMovingTrails\(\): RenderTrail\[\] \{/);
   assert.match(simulation, /drop\.previousX = drop\.x;/);
+  assert.match(simulation, /update\(delta: number, totalTime = this\.time \+ delta\)/);
+  assert.match(simulation, /if \(drop\.nextMotionTime <= totalTime\) \{/);
 });
 
 test("street cars keep head and tail lights on the correct local ends", async () => {

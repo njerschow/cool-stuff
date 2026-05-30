@@ -67,8 +67,11 @@ test("cars use paired headlight light sources for paired road reflections", asyn
 
   assert.match(source, /for \(const z of \[-0\.32, 0\.32\]\)/);
   assert.match(source, /const reflection = new THREE\.Mesh\(new THREE\.CircleGeometry\(1, 24\), reflectionMat\);/);
-  assert.match(source, /reflection\.position\.set\(config\.direction \* 1\.64, 0\.028, z\);/);
+  assert.match(source, /reflection\.position\.set\(1\.64, 0\.028, z\);/);
   assert.match(source, /reflection\.scale\.set\(1\.15, 0\.18, 1\);/);
+  assert.match(source, /tailReflection\.position\.set\(-1\.42, 0\.03, z\);/);
+  assert.match(source, /group\.rotation\.y = config\.direction === 1 \? -Math\.PI \/ 2 : Math\.PI \/ 2;/);
+  assert.doesNotMatch(source, /reflection\.position\.set\(config\.direction \*/);
   assert.doesNotMatch(source, /const headLight = new THREE\.PointLight\(0xffe0aa, 2\.7, 5\.4, 2\.0\);/);
   assert.doesNotMatch(source, /headLight\.position\.set\(config\.direction \* 1\.2, 0\.48, 0\);/);
 });

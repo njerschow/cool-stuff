@@ -224,7 +224,7 @@ export class RaindropPaneSimulation {
     }
   }
 
-  update(delta: number) {
+  update(delta: number, totalTime = this.time + delta) {
     this.time += delta;
 
     if (this.drops.length <= this.options.spawnLimit) {
@@ -234,7 +234,7 @@ export class RaindropPaneSimulation {
       }
     }
 
-    this.updateDrops(delta);
+    this.updateDrops(delta, totalTime);
     this.updateCollisions();
     this.updateTrails(delta);
     this.compactDrops();
@@ -454,14 +454,14 @@ export class RaindropPaneSimulation {
     }
   }
 
-  private updateDrops(delta: number) {
+  private updateDrops(delta: number, totalTime: number) {
     for (const drop of this.drops) {
       if (drop.destroyed) {
         continue;
       }
 
-      if (drop.nextMotionTime <= this.time) {
-        drop.nextMotionTime = this.time + rand(...this.options.motionInterval);
+      if (drop.nextMotionTime <= totalTime) {
+        drop.nextMotionTime = totalTime + rand(...this.options.motionInterval);
         this.randomMotion(drop);
       }
 

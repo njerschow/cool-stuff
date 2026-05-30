@@ -54,6 +54,7 @@ const ROAD_DASH_COUNT = 34;
 const BUILDING_DEPTH_COUNT = 17;
 const STREET_LIGHT_COUNT = 13;
 const SHOP_GLOW_COUNT = 20;
+const RAINDROP_FX_FRAME_DELTA = 0.03;
 
 const qualitySettings = {
   balanced: {
@@ -818,6 +819,7 @@ export function RainWindow({
     let benchmarkRenderMs = 0;
     let rainMapHeight = 1;
     let sceneTime = 0;
+    let rainTotalTime = 0;
     let targetMegapixels = 0;
     let rainMapMegapixels = 0;
     const dropPosition = new THREE.Vector3();
@@ -1023,14 +1025,15 @@ export function RainWindow({
       benchmarkLastFrameAt = frameStartedAt;
       renderer.info.reset();
       const rawDelta = Math.min(clock.getDelta(), 0.04);
-      const delta = pausedRef.current ? 0 : rawDelta * (reducedMotion ? 0.28 : 1);
-      const rainDelta =
-        nativeGlass && delta > 0 ? Math.min(delta * 1.65, 0.05) : 0;
+      const paused = pausedRef.current;
+      const delta = paused ? 0 : rawDelta * (reducedMotion ? 0.28 : 1);
+      const rainDelta = nativeGlass && !paused ? RAINDROP_FX_FRAME_DELTA : 0;
       const visibleRain = rainVisibilityRef.current;
       sceneTime += delta;
+      rainTotalTime += paused ? 0 : rawDelta;
 
       if (rainDelta > 0) {
-        paneSimulation.update(rainDelta);
+        paneSimulation.update(rainDelta, rainTotalTime);
       }
       if (nativeGlass) {
         updateRaindropMesh();
