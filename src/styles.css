@@ -456,11 +456,28 @@ a {
   pointer-events: auto;
 }
 
+.tuning-workbench-panel[data-moved="true"] {
+  top: var(--tuning-panel-top);
+  bottom: auto;
+  left: var(--tuning-panel-left);
+  transform: none;
+}
+
+.tuning-workbench-panel[data-dragging="true"] {
+  user-select: none;
+}
+
 .tuning-workbench-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.tuning-workbench-panel[data-dragging="true"] .tuning-workbench-header {
+  cursor: grabbing;
 }
 
 .tuning-workbench-header span {

@@ -163,11 +163,19 @@ test("focused rain tuning workbench isolates categories and persists the active 
   assert.match(appSource, /new URLSearchParams\(window\.location\.search\)\.get\("tune"\) === "rain"/);
   assert.match(appSource, /const rainTuningStorageKey = "cool-stuff:rain-tuning:v1";/);
   assert.match(appSource, /const rainTuningGroupStorageKey = "cool-stuff:rain-tuning-group:v1";/);
+  assert.match(appSource, /const rainTuningPanelPositionStorageKey =\n  "cool-stuff:rain-tuning-panel-position:v1";/);
   assert.match(appSource, /function readStoredRainTuning\(\)/);
   assert.match(appSource, /window\.localStorage\.setItem\(rainTuningStorageKey, JSON\.stringify\(value\)\)/);
+  assert.match(appSource, /function readStoredTuningPanelPosition\(\): TuningPanelPosition \| null/);
+  assert.match(appSource, /function writeStoredTuningPanelPosition\(value: TuningPanelPosition \| null\)/);
   assert.match(appSource, /function RainTuningWorkbench/);
   assert.match(appSource, /data-view=\{showTuneMode \? "tune" : showComparison \? "compare" : "single"\}/);
   assert.match(appSource, /<RainTuningWorkbench/);
+  assert.match(appSource, /onPointerDown=\{handlePanelDragStart\}/);
+  assert.match(appSource, /onPointerMove=\{handlePanelDragMove\}/);
+  assert.match(appSource, /window\.addEventListener\("pointermove", handlePointerMove\)/);
+  assert.match(appSource, /window\.addEventListener\("pointerup", handlePointerEnd\)/);
+  assert.match(appSource, /data-moved=\{panelPosition \? "true" : undefined\}/);
   assert.match(appSource, /RAIN_TUNING_GROUP_QUESTIONS\[activeGroup\]/);
   assert.match(appSource, /focusedFxOptionsByGroup\[activeGroup\]/);
   assert.match(appSource, /sourceSelector='\[data-tuning-variant="reference"\] \.street-canvas'/);
@@ -175,6 +183,7 @@ test("focused rain tuning workbench isolates categories and persists the active 
   assert.match(appSource, /focused\.mistAlpha = 0;/);
   assert.match(appSource, /focused\.rainOverlayBase = 0;/);
   assert.match(appSource, /Reset Question/);
+  assert.match(appSource, /Reset Position/);
   assert.match(appSource, /Reset Defaults/);
   assert.match(tuningSource, /export const RAIN_TUNING_GROUPS: RainTuningGroup\[] = \[/);
   assert.match(tuningSource, /export const RAIN_TUNING_GROUP_LABELS: Record<RainTuningGroup, string> = \{/);

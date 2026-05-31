@@ -6,7 +6,14 @@ import Play from "lucide-react/dist/esm/icons/play.js";
 import SlidersHorizontal from "lucide-react/dist/esm/icons/sliders-horizontal.js";
 import Sparkles from "lucide-react/dist/esm/icons/sparkles.js";
 import SunMoon from "lucide-react/dist/esm/icons/sun-moon.js";
-import { useCallback, useEffect, useState } from "react";
+import {
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   type BackgroundMode,
   RainWindow,
@@ -41,6 +48,8 @@ const timeCycle: TimeOfDay[] = ["dusk", "night", "morning", "midday"];
 const liveRainRefreshMs = 22;
 const rainTuningStorageKey = "cool-stuff:rain-tuning:v1";
 const rainTuningGroupStorageKey = "cool-stuff:rain-tuning-group:v1";
+const rainTuningPanelPositionStorageKey =
+  "cool-stuff:rain-tuning-panel-position:v1";
 
 const initialBackgroundMode: BackgroundMode =
   new URLSearchParams(window.location.search).get("mode") === "demo"
@@ -85,6 +94,11 @@ type GlobalBenchmark = {
   fps: number;
   frameMs: number;
   heapMb?: number;
+};
+
+type TuningPanelPosition = {
+  x: number;
+  y: number;
 };
 
 export default function App() {
@@ -329,6 +343,43 @@ function writeStoredRainTuningGroup(value: RainTuningGroup) {
   }
 }
 
+function readStoredTuningPanelPosition(): TuningPanelPosition | null {
+  try {
+    const raw = window.localStorage.getItem(rainTuningPanelPositionStorageKey);
+    if (!raw) {
+      return null;
+    }
+
+    const stored = JSON.parse(raw) as Partial<TuningPanelPosition>;
+    if (
+      typeof stored.x === "number" &&
+      Number.isFinite(stored.x) &&
+      typeof stored.y === "number" &&
+      Number.isFinite(stored.y)
+    ) {
+      return { x: stored.x, y: stored.y };
+    }
+  } catch {
+    // The default centered position is good when the saved layout cannot be read.
+  }
+  return null;
+}
+
+function writeStoredTuningPanelPosition(value: TuningPanelPosition | null) {
+  try {
+    if (!value) {
+      window.localStorage.removeItem(rainTuningPanelPositionStorageKey);
+      return;
+    }
+    window.localStorage.setItem(
+      rainTuningPanelPositionStorageKey,
+      JSON.stringify(value)
+    );
+  } catch {
+    // Dragging still works even if local storage is unavailable.
+  }
+}
+
 function RainTuningPanel({
   onChange,
   value,
@@ -400,6 +451,24 @@ function RainTuningWorkbench({
     (control) => control.group === activeGroup
   );
   const focusedNativeTuning = getFocusedNativeTuning(rainTuning, activeGroup);
+  const panelRef = useRef<HTMLElement | null>(null);
+  const dragRef = useRef<TuningPanelPosition | null>(null);
+  const [isDraggingPanel, setIsDraggingPanel] = useState(false);
+  const [panelPosition, setPanelPosition] =
+    useState<TuningPanelPosition | null>(readStoredTuningPanelPosition);
+
+  const clampPanelPosition = useCallback((position: TuningPanelPosition) => {
+    const panel = panelRef.current;
+    const panelWidth = panel?.offsetWidth ?? 720;
+    const panelHeight = panel?.offsetHeight ?? 420;
+    const margin = 12;
+    const maxX = Math.max(margin, window.innerWidth - panelWidth - margin);
+    const maxY = Math.max(margin, window.innerHeight - panelHeight - margin);
+    return {
+      x: Math.min(Math.max(position.x, margin), maxX),
+      y: Math.min(Math.max(position.y, margin), maxY),
+    };
+  }, []);
 
   const moveActiveGroup = (direction: -1 | 1) => {
     const nextIndex =
@@ -407,6 +476,102 @@ function RainTuningWorkbench({
       RAIN_TUNING_GROUPS.length;
     onGroupChange(RAIN_TUNING_GROUPS[nextIndex]);
   };
+
+  const updatePanelDrag = useCallback(
+    (clientX: number, clientY: number) => {
+      const drag = dragRef.current;
+      if (!drag) {
+        return;
+      }
+
+      setPanelPosition(
+        clampPanelPosition({
+          x: clientX - drag.x,
+          y: clientY - drag.y,
+        })
+      );
+    },
+    [clampPanelPosition]
+  );
+
+  const finishPanelDrag = useCallback(() => {
+    dragRef.current = null;
+    setIsDraggingPanel(false);
+  }, []);
+
+  const handlePanelDragStart = (event: ReactPointerEvent<HTMLElement>) => {
+    const panel = panelRef.current;
+    if (!panel) {
+      return;
+    }
+
+    event.preventDefault();
+    const rect = panel.getBoundingClientRect();
+    dragRef.current = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsDraggingPanel(true);
+  };
+
+  const handlePanelDragMove = (event: ReactPointerEvent<HTMLElement>) => {
+    updatePanelDrag(event.clientX, event.clientY);
+  };
+
+  const handlePanelDragEnd = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    finishPanelDrag();
+  };
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      writeStoredTuningPanelPosition(panelPosition);
+    }, 120);
+    return () => window.clearTimeout(timeout);
+  }, [panelPosition]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setPanelPosition((position) =>
+        position ? clampPanelPosition(position) : position
+      );
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [clampPanelPosition]);
+
+  useEffect(() => {
+    if (!isDraggingPanel) {
+      return undefined;
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      updatePanelDrag(event.clientX, event.clientY);
+    };
+    const handlePointerEnd = () => {
+      finishPanelDrag();
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerEnd);
+    window.addEventListener("pointercancel", handlePointerEnd);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerEnd);
+      window.removeEventListener("pointercancel", handlePointerEnd);
+    };
+  }, [finishPanelDrag, isDraggingPanel, updatePanelDrag]);
+
+  const panelStyle = panelPosition
+    ? ({
+        "--tuning-panel-left": `${panelPosition.x}px`,
+        "--tuning-panel-top": `${panelPosition.y}px`,
+      } as CSSProperties)
+    : undefined;
 
   return (
     <section className="tuning-workbench" aria-label="Focused rain tuning">
@@ -447,8 +612,22 @@ function RainTuningWorkbench({
         </div>
       </div>
 
-      <aside className="tuning-workbench-panel" aria-label="Tuning question">
-        <header className="tuning-workbench-header">
+      <aside
+        aria-label="Tuning question"
+        className="tuning-workbench-panel"
+        data-dragging={isDraggingPanel || undefined}
+        data-moved={panelPosition ? "true" : undefined}
+        ref={panelRef}
+        style={panelStyle}
+      >
+        <header
+          className="tuning-workbench-header"
+          onPointerCancel={handlePanelDragEnd}
+          onPointerDown={handlePanelDragStart}
+          onPointerMove={handlePanelDragMove}
+          onPointerUp={handlePanelDragEnd}
+          title="Drag to move settings"
+        >
           <div>
             <span>
               {activeIndex + 1} / {RAIN_TUNING_GROUPS.length}
@@ -495,6 +674,9 @@ function RainTuningWorkbench({
           </button>
           <button onClick={() => onResetGroup(activeGroup)} type="button">
             Reset Question
+          </button>
+          <button onClick={() => setPanelPosition(null)} type="button">
+            Reset Position
           </button>
           <button onClick={onResetAll} type="button">
             Reset Defaults
