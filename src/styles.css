@@ -568,9 +568,8 @@ a {
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1px;
-  background: rgba(242, 232, 210, 0.16);
+  grid-template-columns: 1fr;
+  background: #050708;
 }
 
 .tuning-workbench-panel {
@@ -999,11 +998,6 @@ a {
   }
 
   .comparison-grid {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .tuning-workbench-grid {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   }

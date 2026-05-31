@@ -88,29 +88,6 @@ const initialTuneMode =
 const initialOriginalRainMode = window.location.pathname === "/rain/original";
 const initialDirectoryMode = window.location.pathname === "/directory";
 
-const focusedFxOptionsByGroup: Record<RainTuningGroup, Record<string, unknown>> = {
-  droplets: {
-    mist: false,
-  },
-  mist: {
-    dropletsPerSeconds: 0,
-    mist: true,
-    raindropDiffuseLight: [0, 0, 0],
-    raindropSpecularLight: [0, 0, 0],
-    refractBase: 0,
-    refractScale: 0,
-  },
-  render: {},
-  shader: {
-    dropletsPerSeconds: 0,
-    mist: false,
-  },
-  simulation: {
-    dropletsPerSeconds: 0,
-    mist: false,
-  },
-};
-
 type TuningPanelPosition = {
   x: number;
   y: number;
@@ -649,28 +626,6 @@ function RainTuningWorkbench({
   return (
     <section className="tuning-workbench" aria-label="Focused rain tuning">
       <div className="tuning-workbench-grid">
-        <div className="comparison-panel" data-tuning-variant="reference">
-          <RainWindow
-            backgroundMode="street"
-            nativeGlass={false}
-            paused={paused}
-            quality={quality}
-            rainTuning={DEFAULT_RAIN_TUNING}
-            rainVisibility={rainVisibility}
-            timeOfDay={timeOfDay}
-          />
-          <OriginalRaindropOverlay
-            canvasId={`tuning-reference-${activeGroup}`}
-            captureIntervalMs={liveRainRefreshMs}
-            effectScale={2.35}
-            key={activeGroup}
-            options={focusedFxOptionsByGroup[activeGroup]}
-            sourceSelector='[data-tuning-variant="reference"] .street-canvas'
-            variant="snapshot"
-            visibility={rainVisibility}
-          />
-          <div className="comparison-label">RaindropFX Focus</div>
-        </div>
         <div className="comparison-panel" data-tuning-variant="native">
           <RainWindow
             backgroundMode="street"

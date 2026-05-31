@@ -155,10 +155,6 @@ test("native rain variables are exposed through the tuning panel", async () => {
 test("focused rain tuning workbench isolates categories and persists the active tune", async () => {
   const appSource = await readFile(path.join(root, "src/App.tsx"), "utf8");
   const tuningSource = await readFile(path.join(root, "src/rainTuning.ts"), "utf8");
-  const overlaySource = await readFile(
-    path.join(root, "src/components/OriginalRaindropDemo.tsx"),
-    "utf8"
-  );
   const vercelSource = await readFile(path.join(root, "vercel.json"), "utf8");
 
   assert.match(appSource, /window\.location\.pathname === "\/tune\/rain"/);
@@ -180,8 +176,11 @@ test("focused rain tuning workbench isolates categories and persists the active 
   assert.match(appSource, /window\.addEventListener\("pointerup", handlePointerEnd\)/);
   assert.match(appSource, /data-moved=\{panelPosition \? "true" : undefined\}/);
   assert.match(appSource, /RAIN_TUNING_GROUP_QUESTIONS\[activeGroup\]/);
-  assert.match(appSource, /focusedFxOptionsByGroup\[activeGroup\]/);
-  assert.match(appSource, /sourceSelector='\[data-tuning-variant="reference"\] \.street-canvas'/);
+  assert.match(appSource, /data-tuning-variant="native"/);
+  assert.match(appSource, /rainTuning=\{focusedNativeTuning\}/);
+  assert.doesNotMatch(appSource, /data-tuning-variant="reference"/);
+  assert.doesNotMatch(appSource, /focusedFxOptionsByGroup/);
+  assert.doesNotMatch(appSource, /tuning-reference-/);
   assert.match(appSource, /function getFocusedNativeTuning/);
   assert.match(appSource, /focused\.mistAlpha = 0;/);
   assert.match(appSource, /focused\.microdropRate = 0;/);
@@ -193,8 +192,6 @@ test("focused rain tuning workbench isolates categories and persists the active 
   assert.match(tuningSource, /export const RAIN_TUNING_GROUPS: RainTuningGroup\[] = \[/);
   assert.match(tuningSource, /export const RAIN_TUNING_GROUP_LABELS: Record<RainTuningGroup, string> = \{/);
   assert.match(tuningSource, /export const RAIN_TUNING_GROUP_QUESTIONS: Record<RainTuningGroup, string> = \{/);
-  assert.match(overlaySource, /options\?: Record<string, unknown>;/);
-  assert.match(overlaySource, /options=\{options\}/);
   assert.match(vercelSource, /"source": "\/tune\/:path\*"/);
   assert.match(vercelSource, /"destination": "\/index.html"/);
 });
