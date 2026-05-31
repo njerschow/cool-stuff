@@ -104,7 +104,7 @@ export const DEFAULT_RAIN_TUNING: RainTuning = {
   trailDropSizeMax: 0.5,
   trailDropSizeMin: 0.3,
   trailSpread: 0.6,
-  waterEdgeContrast: 0,
+  waterEdgeContrast: 0.12,
   velocitySpread: 0.3,
   xShiftMax: 0.1,
   xShiftMin: 0,
