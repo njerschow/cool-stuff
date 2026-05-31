@@ -223,6 +223,24 @@ test("original RaindropFX route preserves the untouched reference render", async
   assert.match(vercelSource, /"destination": "\/index.html"/);
 });
 
+test("directory route exposes all memorable project paths", async () => {
+  const appSource = await readFile(path.join(root, "src/App.tsx"), "utf8");
+  const styleSource = await readFile(path.join(root, "src/styles.css"), "utf8");
+  const vercelSource = await readFile(path.join(root, "vercel.json"), "utf8");
+
+  assert.match(appSource, /window\.location\.pathname === "\/directory"/);
+  assert.match(appSource, /const showDirectory = initialDirectoryMode;/);
+  assert.match(appSource, /showDirectory\s+\?\s+"directory"/);
+  assert.match(appSource, /<ProjectDirectory \/>/);
+  for (const path of ["/", "/?compare=rain", "/tune/rain", "/rain/original"]) {
+    assert.match(appSource, new RegExp(`href: "${path.replace(/[/?]/g, "\\$&")}"`));
+  }
+  assert.match(styleSource, /\.portfolio\[data-view="directory"\]/);
+  assert.match(styleSource, /\.directory-list/);
+  assert.match(vercelSource, /"source": "\/directory"/);
+  assert.match(vercelSource, /"destination": "\/index.html"/);
+});
+
 test("native shader exposes the same overlay curve as uniforms", async () => {
   const source = await readFile(
     path.join(root, "src/components/RainWindow.tsx"),

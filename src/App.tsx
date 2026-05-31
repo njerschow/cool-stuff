@@ -44,6 +44,33 @@ const projects = [
   { number: "03", name: "Light Archive", tone: "queued" },
 ];
 
+const directoryLinks = [
+  {
+    eyebrow: "Live",
+    href: "/",
+    name: "Rain Window",
+    summary: "The current native realtime glass scene with street traffic.",
+  },
+  {
+    eyebrow: "Compare",
+    href: "/?compare=rain",
+    name: "Rain Comparison",
+    summary: "Side-by-side snapshot/reference work against the native renderer.",
+  },
+  {
+    eyebrow: "Tune",
+    href: "/tune/rain",
+    name: "Rain Tuning",
+    summary: "Focused controls for tuning each part of the rain render.",
+  },
+  {
+    eyebrow: "Reference",
+    href: "/rain/original",
+    name: "Original RaindropFX",
+    summary: "The preserved untouched RaindropFX look we compare against.",
+  },
+];
+
 const timeCycle: TimeOfDay[] = ["dusk", "night", "morning", "midday"];
 const liveRainRefreshMs = 22;
 const rainTuningStorageKey = "cool-stuff:rain-tuning:v1";
@@ -61,6 +88,7 @@ const initialTuneMode =
   window.location.pathname === "/tune/rain" ||
   new URLSearchParams(window.location.search).get("tune") === "rain";
 const initialOriginalRainMode = window.location.pathname === "/rain/original";
+const initialDirectoryMode = window.location.pathname === "/directory";
 
 const focusedFxOptionsByGroup: Record<RainTuningGroup, Record<string, unknown>> = {
   droplets: {
@@ -116,9 +144,11 @@ export default function App() {
   const [activeTuningGroup, setActiveTuningGroup] =
     useState<RainTuningGroup>(readStoredRainTuningGroup);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>("morning");
+  const showDirectory = initialDirectoryMode;
   const showOriginalRain = initialOriginalRainMode;
   const showTuneMode = initialTuneMode && backgroundMode === "street";
   const showComparison =
+    !showDirectory &&
     !showOriginalRain &&
     !showTuneMode &&
     initialCompareMode &&
@@ -157,7 +187,9 @@ export default function App() {
       className="portfolio"
       data-background-mode={backgroundMode}
       data-view={
-        showOriginalRain
+        showDirectory
+          ? "directory"
+          : showOriginalRain
           ? "original"
           : showTuneMode
             ? "tune"
@@ -166,7 +198,9 @@ export default function App() {
               : "single"
       }
     >
-      {showOriginalRain ? (
+      {showDirectory ? (
+        <ProjectDirectory />
+      ) : showOriginalRain ? (
         <OriginalRaindropDemo />
       ) : backgroundMode === "demo" ? (
         <OriginalRaindropDemo />
@@ -435,6 +469,33 @@ function RainTuningPanel({
         ))}
       </div>
     </details>
+  );
+}
+
+function ProjectDirectory() {
+  return (
+    <section className="directory-view" aria-labelledby="directory-title">
+      <div className="directory-shell">
+        <a className="directory-home-link" href="/">
+          <Sparkles size={18} aria-hidden="true" />
+          <span>Cool Stuff</span>
+        </a>
+        <div className="directory-heading">
+          <p>Directory</p>
+          <h1 id="directory-title">Project paths</h1>
+        </div>
+        <nav className="directory-list" aria-label="Available project paths">
+          {directoryLinks.map((link) => (
+            <a className="directory-link" href={link.href} key={link.href}>
+              <span>{link.eyebrow}</span>
+              <strong>{link.name}</strong>
+              <em>{link.href}</em>
+              <p>{link.summary}</p>
+            </a>
+          ))}
+        </nav>
+      </div>
+    </section>
   );
 }
 

@@ -418,6 +418,135 @@ a {
   display: none;
 }
 
+.portfolio[data-view="directory"] {
+  min-height: 100%;
+  overflow: auto;
+  background:
+    linear-gradient(135deg, rgba(245, 184, 119, 0.15), transparent 34%),
+    linear-gradient(180deg, #071013 0%, #0b1211 58%, #15120e 100%);
+}
+
+.portfolio[data-view="directory"] .site-header,
+.portfolio[data-view="directory"] .project-title,
+.portfolio[data-view="directory"] .scene-toolbar,
+.portfolio[data-view="directory"] .tuning-panel {
+  display: none;
+}
+
+.directory-view {
+  min-height: 100%;
+  padding: clamp(28px, 6vw, 72px);
+  color: #fff7e8;
+}
+
+.directory-shell {
+  display: grid;
+  gap: clamp(28px, 5vw, 56px);
+  width: min(1040px, 100%);
+  margin: 0 auto;
+}
+
+.directory-home-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  justify-self: start;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(242, 232, 210, 0.16);
+  border-radius: 8px;
+  color: #fff7e8;
+  background: rgba(5, 9, 10, 0.48);
+  text-decoration: none;
+}
+
+.directory-home-link span {
+  font-size: 0.82rem;
+  font-weight: 760;
+  letter-spacing: 0.02em;
+}
+
+.directory-heading {
+  max-width: 720px;
+}
+
+.directory-heading p {
+  margin: 0 0 10px;
+  color: #f9b877;
+  font-size: 0.78rem;
+  font-weight: 820;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.directory-heading h1 {
+  margin: 0;
+  color: #fff4de;
+  font-size: clamp(2.4rem, 7vw, 5.8rem);
+  line-height: 0.92;
+  letter-spacing: 0;
+}
+
+.directory-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.directory-link {
+  display: grid;
+  gap: 8px;
+  min-height: 172px;
+  padding: 18px;
+  border: 1px solid rgba(242, 232, 210, 0.16);
+  border-radius: 8px;
+  color: #fff7e8;
+  background: rgba(4, 9, 10, 0.52);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 44px rgba(0, 0, 0, 0.24);
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.directory-link:hover {
+  border-color: rgba(249, 184, 119, 0.52);
+  background: rgba(9, 18, 18, 0.72);
+  transform: translateY(-2px);
+}
+
+.directory-link span {
+  color: #f9b877;
+  font-size: 0.7rem;
+  font-weight: 820;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.directory-link strong {
+  color: #fff4de;
+  font-size: clamp(1.2rem, 2.4vw, 1.8rem);
+  line-height: 1.05;
+}
+
+.directory-link em {
+  color: rgba(171, 219, 224, 0.84);
+  font-size: 0.86rem;
+  font-style: normal;
+  font-weight: 680;
+  word-break: break-word;
+}
+
+.directory-link p {
+  margin: auto 0 0;
+  color: rgba(233, 245, 244, 0.72);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
 .portfolio[data-view="compare"] .site-header,
 .portfolio[data-view="compare"] .project-title {
   display: none;
@@ -848,6 +977,18 @@ a {
 
   .tuning-control {
     grid-template-columns: minmax(96px, 0.9fr) minmax(92px, 1fr) 44px;
+  }
+
+  .directory-view {
+    padding: 24px 18px 32px;
+  }
+
+  .directory-list {
+    grid-template-columns: 1fr;
+  }
+
+  .directory-link {
+    min-height: 150px;
   }
 
   .portfolio[data-background-mode="demo"] .raindrop-fx-demo,
