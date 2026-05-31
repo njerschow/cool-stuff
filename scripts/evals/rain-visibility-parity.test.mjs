@@ -241,6 +241,17 @@ test("directory route exposes all memorable project paths", async () => {
   assert.match(vercelSource, /"destination": "\/index.html"/);
 });
 
+test("comparison route stays focused on the visual side-by-side", async () => {
+  const appSource = await readFile(path.join(root, "src/App.tsx"), "utf8");
+
+  assert.match(appSource, /!\s*showTuneMode && !showComparison \? \(/);
+  assert.match(appSource, /function RainComparison/);
+  assert.doesNotMatch(appSource, /<BenchmarkPanel/);
+  assert.doesNotMatch(appSource, /function BenchmarkPanel/);
+  assert.doesNotMatch(appSource, /benchmarkId=/);
+  assert.doesNotMatch(appSource, /onBenchmark=/);
+});
+
 test("native shader exposes the same overlay curve as uniforms", async () => {
   const source = await readFile(
     path.join(root, "src/components/RainWindow.tsx"),

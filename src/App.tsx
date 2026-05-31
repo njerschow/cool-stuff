@@ -17,14 +17,12 @@ import {
 import {
   type BackgroundMode,
   RainWindow,
-  type RainWindowBenchmarkStats,
   type RenderQuality,
   type TimeOfDay,
 } from "./components/RainWindow";
 import {
   OriginalRaindropDemo,
   OriginalRaindropOverlay,
-  type RaindropFxBenchmarkStats,
 } from "./components/OriginalRaindropDemo";
 import { RAIN_VISIBILITY_SLIDER } from "./rainVisibility";
 import {
@@ -111,18 +109,6 @@ const focusedFxOptionsByGroup: Record<RainTuningGroup, Record<string, unknown>> 
     dropletsPerSeconds: 0,
     mist: false,
   },
-};
-
-type BenchmarkState = {
-  native?: RainWindowBenchmarkStats;
-  snapshotFx?: RaindropFxBenchmarkStats;
-  snapshotScene?: RainWindowBenchmarkStats;
-};
-
-type GlobalBenchmark = {
-  fps: number;
-  frameMs: number;
-  heapMb?: number;
 };
 
 type TuningPanelPosition = {
@@ -333,7 +319,7 @@ export default function App() {
           />
         </label>
       </div>
-      {!showTuneMode ? (
+      {!showTuneMode && !showComparison ? (
         <RainTuningPanel
           onChange={handleRainTuningChange}
           value={rainTuning}
@@ -849,73 +835,12 @@ function RainComparison({
   rainVisibility: number;
   timeOfDay: TimeOfDay;
 }) {
-  const [benchmarks, setBenchmarks] = useState<BenchmarkState>({});
-  const [globalBenchmark, setGlobalBenchmark] = useState<GlobalBenchmark>({
-    fps: 0,
-    frameMs: 0,
-  });
-
-  const handleRainBenchmark = useCallback(
-    (id: string, stats: RainWindowBenchmarkStats) => {
-      setBenchmarks((value) => ({ ...value, [id]: stats }));
-    },
-    []
-  );
-
-  const handleFxBenchmark = useCallback(
-    (id: string, stats: RaindropFxBenchmarkStats) => {
-      setBenchmarks((value) => ({ ...value, [id]: stats }));
-    },
-    []
-  );
-
-  useEffect(() => {
-    let animationFrame = 0;
-    let frameCount = 0;
-    let frameSum = 0;
-    let lastFrameAt = performance.now();
-    let lastReportAt = performance.now();
-
-    const measure = (time: number) => {
-      const frameMs = time - lastFrameAt;
-      lastFrameAt = time;
-      frameCount += 1;
-      frameSum += frameMs;
-
-      if (time - lastReportAt >= 1000 && frameCount > 0) {
-        const averageFrameMs = frameSum / frameCount;
-        const memory = (
-          performance as Performance & {
-            memory?: { usedJSHeapSize: number };
-          }
-        ).memory;
-        setGlobalBenchmark({
-          fps: 1000 / Math.max(1, averageFrameMs),
-          frameMs: averageFrameMs,
-          heapMb: memory
-            ? memory.usedJSHeapSize / (1024 * 1024)
-            : undefined,
-        });
-        frameCount = 0;
-        frameSum = 0;
-        lastReportAt = time;
-      }
-
-      animationFrame = window.requestAnimationFrame(measure);
-    };
-
-    animationFrame = window.requestAnimationFrame(measure);
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, []);
-
   return (
     <section className="comparison-grid" aria-label="Rain comparison">
       <div className="comparison-panel" data-rain-variant="snapshot">
         <RainWindow
-          benchmarkId="snapshotScene"
           backgroundMode="street"
           nativeGlass={false}
-          onBenchmark={handleRainBenchmark}
           paused={paused}
           quality={quality}
           rainTuning={rainTuning}
@@ -923,11 +848,9 @@ function RainComparison({
           timeOfDay={timeOfDay}
         />
         <OriginalRaindropOverlay
-          benchmarkId="snapshotFx"
           canvasId="snapshot-rain-canvas"
           captureIntervalMs={liveRainRefreshMs}
           effectScale={2.35}
-          onBenchmark={handleFxBenchmark}
           sourceSelector='[data-rain-variant="snapshot"] .street-canvas'
           variant="snapshot"
           visibility={rainVisibility}
@@ -936,10 +859,8 @@ function RainComparison({
       </div>
       <div className="comparison-panel" data-rain-variant="no-snapshot">
         <RainWindow
-          benchmarkId="native"
           backgroundMode="street"
           nativeGlass
-          onBenchmark={handleRainBenchmark}
           paused={paused}
           quality={quality}
           rainTuning={rainTuning}
@@ -948,15 +869,8 @@ function RainComparison({
         />
         <div className="comparison-label">Native Glass</div>
       </div>
-      <BenchmarkPanel benchmarks={benchmarks} global={globalBenchmark} />
     </section>
   );
-}
-
-function formatMetric(value: number | undefined, digits = 1) {
-  return value === undefined || Number.isNaN(value)
-    ? "..."
-    : value.toFixed(digits);
 }
 
 function formatTuningValue(value: number) {
@@ -969,66 +883,4 @@ function formatTuningValue(value: number) {
   }
 
   return value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
-}
-
-function BenchmarkPanel({
-  benchmarks,
-  global,
-}: {
-  benchmarks: BenchmarkState;
-  global: GlobalBenchmark;
-}) {
-  const snapshotScene = benchmarks.snapshotScene;
-  const snapshotFx = benchmarks.snapshotFx;
-  const native = benchmarks.native;
-
-  return (
-    <aside className="benchmark-panel" aria-label="Live benchmark">
-      <header className="benchmark-header">
-        <strong>Live Bench</strong>
-        <span>{formatMetric(global.fps)} fps</span>
-      </header>
-      <div className="benchmark-columns">
-        <section className="benchmark-column">
-          <h2>RaindropFX</h2>
-          <Metric label="scene fps" value={formatMetric(snapshotScene?.fps)} />
-          <Metric label="scene ms" value={formatMetric(snapshotScene?.renderMs)} />
-          <Metric label="capture ms" value={formatMetric(snapshotFx?.captureMs)} />
-          <Metric label="capture hz" value={formatMetric(snapshotFx?.captureHz)} />
-          <Metric label="canvas mp" value={formatMetric(snapshotFx?.canvasMp, 2)} />
-        </section>
-        <section className="benchmark-column">
-          <h2>Native</h2>
-          <Metric label="scene fps" value={formatMetric(native?.fps)} />
-          <Metric label="render ms" value={formatMetric(native?.renderMs)} />
-          <Metric label="draw calls" value={formatMetric(native?.drawCalls, 0)} />
-          <Metric
-            label="triangles"
-            value={
-              formatMetric(
-                native ? native.triangles / 1000 : undefined,
-                1
-              ) + "k"
-            }
-          />
-          <Metric label="targets mp" value={formatMetric(native?.rainMapMp, 2)} />
-        </section>
-      </div>
-      <footer className="benchmark-footer">
-        <span>main {formatMetric(global.frameMs)} ms</span>
-        {global.heapMb !== undefined ? (
-          <span>heap {formatMetric(global.heapMb, 0)} mb</span>
-        ) : null}
-      </footer>
-    </aside>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="benchmark-metric">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
 }
