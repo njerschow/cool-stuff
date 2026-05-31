@@ -744,8 +744,6 @@ function getFocusedNativeTuning(
   }
 
   if (activeGroup === "mist") {
-    focused.rainOverlayBase = 0;
-    focused.rainOverlayScale = 0;
     focused.microdropRate = 0;
   }
 

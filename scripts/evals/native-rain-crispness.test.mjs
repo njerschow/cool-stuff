@@ -49,17 +49,25 @@ test("native drop shader mirrors the RaindropFX transparent refractive pass", as
 
 test("native compositor draws RaindropFX layers instead of one opaque pane", async () => {
   const source = await rainWindowSource();
+  const tuning = await rainTuningSource();
 
   assert.match(source, /const mistComposeFragmentShader = `/);
   assert.match(source, /color\.rgb \+= vec3\(uMistBrightness\);/);
   assert.match(source, /color\.a = texture2D\(uMistTex, vUv\)\.r \* overlayOpacity \* uMistAlpha;/);
+  assert.match(source, /uniform float uBackgroundGain;/);
+  assert.match(source, /uniform float uBackgroundLift;/);
+  assert.match(source, /color\.rgb = color\.rgb \* uBackgroundGain \+ vec3\(uBackgroundLift\);/);
+  assert.match(tuning, /backgroundGain: 1,/);
+  assert.match(tuning, /backgroundLift: 0,/);
+  assert.match(tuning, /key: "backgroundGain"/);
+  assert.match(tuning, /key: "backgroundLift"/);
   assert.match(source, /const mistComposeMaterial = new THREE\.ShaderMaterial\(\{/);
   assert.match(source, /renderBlur\(\n        frostTargetB,\n        tuningInt\(rainTuning\.backgroundBlurSteps\),\n        frostTargetA\n      \);/);
   assert.match(source, /renderBlur\(\n        frostTargetB,\n        tuningInt\(rainTuning\.mistBlurSteps\),\n        mistBackgroundTargetA\n      \);/);
   assert.doesNotMatch(source, /mistBackgroundTargetB/);
   assert.match(
     source,
-    /copyMaterial\.uniforms\.uImage\.value = frostTargetA\.texture;\n      renderPostMaterial\(copyMaterial, null\);\n      renderPostMaterial\(mistComposeMaterial, null\);\n      renderer\.render\(screenScene, screenCamera\);/
+    /copyMaterial\.uniforms\.uImage\.value = frostTargetA\.texture;\n      copyMaterial\.uniforms\.uBackgroundGain\.value = rainTuning\.backgroundGain;\n      copyMaterial\.uniforms\.uBackgroundLift\.value = rainTuning\.backgroundLift;\n      renderPostMaterial\(copyMaterial, null\);\n      renderPostMaterial\(mistComposeMaterial, null\);\n      renderer\.render\(screenScene, screenCamera\);/
   );
   assert.match(source, /renderer\.clear\(true, true, true\);\n      const previousCanvasAutoClear = renderer\.autoClear;/);
   assert.doesNotMatch(source, /renderGlare\(\);\n      copyToGlassTarget\(\);/);

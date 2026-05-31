@@ -1,5 +1,7 @@
 export type RainTuning = {
   backgroundBlurSteps: number;
+  backgroundGain: number;
+  backgroundLift: number;
   colliderSize: number;
   diffuseMidpoint: number;
   diffuseStrength: number;
@@ -50,6 +52,8 @@ export type RainTuning = {
 
 export const DEFAULT_RAIN_TUNING: RainTuning = {
   backgroundBlurSteps: 3,
+  backgroundGain: 1,
+  backgroundLift: 0,
   colliderSize: 1,
   diffuseMidpoint: 0.8,
   diffuseStrength: 0.2,
@@ -168,8 +172,26 @@ export const RAIN_TUNING_CONTROLS: RainTuningControl[] = [
     step: 1,
   },
   {
-    description: "Pyramid blur passes for the foggy mist layer behind cleared streaks.",
+    description: "Multiplier applied to the underlying street render before rain and mist are composited. This is the direct background brightness control.",
     group: "render",
+    key: "backgroundGain",
+    label: "background gain",
+    max: 2,
+    min: 0.25,
+    step: 0.01,
+  },
+  {
+    description: "Additive lift applied to the underlying street render. This raises dark shadows without only brightening highlights.",
+    group: "render",
+    key: "backgroundLift",
+    label: "background lift",
+    max: 0.3,
+    min: -0.08,
+    step: 0.005,
+  },
+  {
+    description: "Pyramid blur passes for the foggy mist layer behind cleared streaks.",
+    group: "mist",
     key: "mistBlurSteps",
     label: "mist blur",
     max: 6,

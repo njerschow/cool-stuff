@@ -278,10 +278,14 @@ void main() {
 
 const copyFragmentShader = `
 uniform sampler2D uImage;
+uniform float uBackgroundGain;
+uniform float uBackgroundLift;
 varying vec2 vUv;
 
 void main() {
-  gl_FragColor = texture2D(uImage, vUv);
+  vec4 color = texture2D(uImage, vUv);
+  color.rgb = color.rgb * uBackgroundGain + vec3(uBackgroundLift);
+  gl_FragColor = color;
 }
 `;
 
@@ -641,6 +645,8 @@ export function RainWindow({
       fragmentShader: copyFragmentShader,
       toneMapped: false,
       uniforms: {
+        uBackgroundGain: { value: rainTuning.backgroundGain },
+        uBackgroundLift: { value: rainTuning.backgroundLift },
         uImage: { value: target.texture },
       },
       vertexShader: glassVertexShader,
@@ -1160,6 +1166,8 @@ export function RainWindow({
       const previousCanvasAutoClear = renderer.autoClear;
       renderer.autoClear = false;
       copyMaterial.uniforms.uImage.value = frostTargetA.texture;
+      copyMaterial.uniforms.uBackgroundGain.value = rainTuning.backgroundGain;
+      copyMaterial.uniforms.uBackgroundLift.value = rainTuning.backgroundLift;
       renderPostMaterial(copyMaterial, null);
       renderPostMaterial(mistComposeMaterial, null);
       renderer.render(screenScene, screenCamera);

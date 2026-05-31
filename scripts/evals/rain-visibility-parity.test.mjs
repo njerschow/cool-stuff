@@ -134,6 +134,8 @@ test("native rain variables are exposed through the tuning panel", async () => {
   for (const key of [
     "rainFrameDelta",
     "rainMapScale",
+    "backgroundGain",
+    "backgroundLift",
     "rainMaskStart",
     "refractBase",
     "mistAlpha",
@@ -181,7 +183,9 @@ test("focused rain tuning workbench isolates categories and persists the active 
   assert.match(appSource, /sourceSelector='\[data-tuning-variant="reference"\] \.street-canvas'/);
   assert.match(appSource, /function getFocusedNativeTuning/);
   assert.match(appSource, /focused\.mistAlpha = 0;/);
-  assert.match(appSource, /focused\.rainOverlayBase = 0;/);
+  assert.match(appSource, /focused\.microdropRate = 0;/);
+  assert.doesNotMatch(appSource, /focused\.rainOverlayBase = 0;/);
+  assert.doesNotMatch(appSource, /focused\.rainOverlayScale = 0;/);
   assert.match(appSource, /Reset Question/);
   assert.match(appSource, /Reset Position/);
   assert.match(appSource, /Reset Defaults/);
@@ -204,6 +208,9 @@ test("native shader exposes the same overlay curve as uniforms", async () => {
   assert.match(source, /uniform float uRainVisibilityRange;/);
   assert.match(source, /uniform float uRainOverlayOpacityBase;/);
   assert.match(source, /uniform float uRainOverlayOpacityScale;/);
+  assert.match(source, /uniform float uBackgroundGain;/);
+  assert.match(source, /uniform float uBackgroundLift;/);
+  assert.match(source, /color\.rgb = color\.rgb \* uBackgroundGain \+ vec3\(uBackgroundLift\);/);
   assert.match(
     source,
     /float overlayOpacity = uRainOverlayOpacityBase \+ normalizedVisibility \* uRainOverlayOpacityScale;/
