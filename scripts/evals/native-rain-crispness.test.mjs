@@ -38,10 +38,13 @@ test("native drop shader mirrors the RaindropFX transparent refractive pass", as
     /vec2 refractUv = vUv - \(compose\.xy - vec2\(0\.5\)\) \* vec2\(compose\.b \* uRefractParams\.y \+ uRefractParams\.x\);/
   );
   assert.match(source, /vec3 lightDir = vec3\(-1\.0, 1\.0, 2\.0\) - 0\.0 \* vec3\(vUv\.xy, 0\.0\);/);
-  assert.match(source, /float waterStrength = clamp\(overlayOpacity, 0\.0, 1\.0\);/);
-  assert.match(source, /color\.rgb = mix\(baseColor\.rgb, color\.rgb, waterStrength\);/);
-  assert.match(source, /color\.rgb \+= vec3\(\(lambert - uDiffuseParams\.x\) \* uDiffuseParams\.y \* waterStrength\);/);
+  assert.match(source, /vec4 color = texture2D\(uBackground, refractUv\);/);
+  assert.match(source, /color\.rgb \+= vec3\(\(lambert - uDiffuseParams\.x\) \* uDiffuseParams\.y\);/);
   assert.match(source, /gl_FragColor = vec4\(color\.rgb, mask \* overlayOpacity\);/);
+  assert.doesNotMatch(source, /vec4 baseColor = texture2D\(uBackground, vUv\);/);
+  assert.doesNotMatch(source, /float waterStrength = clamp\(overlayOpacity, 0\.0, 1\.0\);/);
+  assert.doesNotMatch(source, /color\.rgb = mix\(baseColor\.rgb, color\.rgb, waterStrength\);/);
+  assert.doesNotMatch(source, /colorspace_fragment/);
   assert.doesNotMatch(source, /trailMask/);
   assert.doesNotMatch(source, /coreMask/);
   assert.match(source, /blending: THREE\.NormalBlending,[\s\S]+fragmentShader: glassFragmentShader,[\s\S]+transparent: true,/);
