@@ -199,7 +199,7 @@ export const RAIN_TUNING_CONTROLS: RainTuningControl[] = [
     step: 1,
   },
   {
-    description: "Base opacity applied to native water and mist overlays at the left side of the rain visibility slider.",
+    description: "Base strength for native water visibility, refraction, and mist at the left side of the rain visibility slider.",
     group: "shader",
     key: "rainOverlayBase",
     label: "overlay base",

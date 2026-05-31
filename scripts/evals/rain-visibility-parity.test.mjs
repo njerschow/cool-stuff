@@ -269,6 +269,8 @@ test("native shader exposes the same overlay curve as uniforms", async () => {
     source,
     /float overlayOpacity = uRainOverlayOpacityBase \+ normalizedVisibility \* uRainOverlayOpacityScale;/
   );
+  assert.match(source, /float waterStrength = clamp\(overlayOpacity, 0\.0, 1\.0\);/);
+  assert.match(source, /color\.rgb = mix\(baseColor\.rgb, color\.rgb, waterStrength\);/);
   assert.match(
     source,
     /gl_FragColor = vec4\(color\.rgb, mask \* overlayOpacity\);/

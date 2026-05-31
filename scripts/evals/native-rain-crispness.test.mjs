@@ -38,7 +38,9 @@ test("native drop shader mirrors the RaindropFX transparent refractive pass", as
     /vec2 refractUv = vUv - \(compose\.xy - vec2\(0\.5\)\) \* vec2\(compose\.b \* uRefractParams\.y \+ uRefractParams\.x\);/
   );
   assert.match(source, /vec3 lightDir = vec3\(-1\.0, 1\.0, 2\.0\) - 0\.0 \* vec3\(vUv\.xy, 0\.0\);/);
-  assert.match(source, /color\.rgb \+= vec3\(\(lambert - uDiffuseParams\.x\) \* uDiffuseParams\.y\);/);
+  assert.match(source, /float waterStrength = clamp\(overlayOpacity, 0\.0, 1\.0\);/);
+  assert.match(source, /color\.rgb = mix\(baseColor\.rgb, color\.rgb, waterStrength\);/);
+  assert.match(source, /color\.rgb \+= vec3\(\(lambert - uDiffuseParams\.x\) \* uDiffuseParams\.y \* waterStrength\);/);
   assert.match(source, /gl_FragColor = vec4\(color\.rgb, mask \* overlayOpacity\);/);
   assert.doesNotMatch(source, /trailMask/);
   assert.doesNotMatch(source, /coreMask/);

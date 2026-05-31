@@ -236,8 +236,11 @@ void main() {
   float normalizedVisibility = clamp((uRainVisibility - uRainVisibilityMin) / uRainVisibilityRange, 0.0, 1.0);
   float overlayOpacity = uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale;
 
+  vec4 baseColor = texture2D(uBackground, vUv);
   vec4 color = texture2D(uBackground, refractUv);
-  color.rgb += vec3((lambert - uDiffuseParams.x) * uDiffuseParams.y);
+  float waterStrength = clamp(overlayOpacity, 0.0, 1.0);
+  color.rgb = mix(baseColor.rgb, color.rgb, waterStrength);
+  color.rgb += vec3((lambert - uDiffuseParams.x) * uDiffuseParams.y * waterStrength);
   color.rgb += vec3(specular) * vec3(0.0);
   gl_FragColor = vec4(color.rgb, mask * overlayOpacity);
   #include <colorspace_fragment>
