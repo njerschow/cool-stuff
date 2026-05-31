@@ -250,6 +250,10 @@ uniform float uRainVisibilityMin;
 uniform float uRainVisibilityRange;
 uniform float uRainOverlayOpacityBase;
 uniform float uRainOverlayOpacityScale;
+uniform float uLightFadeStrength;
+uniform float uLightFadeThreshold;
+uniform float uSpecularStrength;
+uniform float uWaterEdgeContrast;
 uniform vec2 uRainMaskSmooth;
 uniform vec2 uRefractParams;
 uniform vec2 uDiffuseParams;
@@ -273,10 +277,17 @@ void main() {
   float normalizedVisibility = clamp((uRainVisibility - uRainVisibilityMin) / uRainVisibilityRange, 0.0, 1.0);
   float overlayOpacity = uRainOverlayOpacityBase + normalizedVisibility * uRainOverlayOpacityScale;
 
+  vec4 baseColor = texture2D(uBackground, vUv);
   vec4 color = texture2D(uBackground, refractUv);
-  color.rgb += vec3((lambert - uDiffuseParams.x) * uDiffuseParams.y);
-  color.rgb += vec3(specular) * vec3(0.0);
-  gl_FragColor = vec4(color.rgb, mask * overlayOpacity);
+  float baseLuma = dot(baseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+  float brightRegion = smoothstep(uLightFadeThreshold, 1.0, baseLuma);
+  float lightFade = mix(1.0, 1.0 - brightRegion, uLightFadeStrength);
+  float normalEnergy = length(compose.xy - vec2(0.5)) * compose.a;
+  float edgeContrast = (normalEnergy - 0.18) * uWaterEdgeContrast;
+  color.rgb += vec3((lambert - uDiffuseParams.x) * uDiffuseParams.y * lightFade);
+  color.rgb += vec3(edgeContrast);
+  color.rgb += vec3(specular * uSpecularStrength * lightFade);
+  gl_FragColor = vec4(color.rgb, mask * overlayOpacity * lightFade);
 }
 `;
 
@@ -652,6 +663,10 @@ export function RainWindow({
         uRainOverlayOpacityScale: {
           value: rainTuning.rainOverlayScale,
         },
+        uLightFadeStrength: { value: rainTuning.lightFadeStrength },
+        uLightFadeThreshold: { value: rainTuning.lightFadeThreshold },
+        uSpecularStrength: { value: rainTuning.specularStrength },
+        uWaterEdgeContrast: { value: rainTuning.waterEdgeContrast },
         uDiffuseParams: {
           value: new THREE.Vector2(
             rainTuning.diffuseMidpoint,
@@ -1179,6 +1194,14 @@ export function RainWindow({
         currentTuning.rainOverlayBase;
       glassMaterial.uniforms.uRainOverlayOpacityScale.value =
         currentTuning.rainOverlayScale;
+      glassMaterial.uniforms.uLightFadeStrength.value =
+        currentTuning.lightFadeStrength;
+      glassMaterial.uniforms.uLightFadeThreshold.value =
+        currentTuning.lightFadeThreshold;
+      glassMaterial.uniforms.uSpecularStrength.value =
+        currentTuning.specularStrength;
+      glassMaterial.uniforms.uWaterEdgeContrast.value =
+        currentTuning.waterEdgeContrast;
       glassMaterial.uniforms.uDiffuseParams.value.set(
         currentTuning.diffuseMidpoint,
         currentTuning.diffuseStrength

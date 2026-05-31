@@ -136,8 +136,12 @@ test("native rain variables are exposed through the tuning panel", async () => {
     "rainMapScale",
     "backgroundGain",
     "backgroundLift",
+    "lightFadeStrength",
+    "lightFadeThreshold",
     "rainMaskStart",
     "refractBase",
+    "specularStrength",
+    "waterEdgeContrast",
     "mistAlpha",
     "mistAddDivisor",
     "eraserStart",
@@ -262,6 +266,10 @@ test("native shader exposes the same overlay curve as uniforms", async () => {
   assert.match(source, /uniform float uRainVisibilityRange;/);
   assert.match(source, /uniform float uRainOverlayOpacityBase;/);
   assert.match(source, /uniform float uRainOverlayOpacityScale;/);
+  assert.match(source, /uniform float uLightFadeStrength;/);
+  assert.match(source, /uniform float uLightFadeThreshold;/);
+  assert.match(source, /uniform float uSpecularStrength;/);
+  assert.match(source, /uniform float uWaterEdgeContrast;/);
   assert.match(source, /uniform float uBackgroundGain;/);
   assert.match(source, /uniform float uBackgroundLift;/);
   assert.match(source, /color\.rgb = color\.rgb \* uBackgroundGain \+ vec3\(uBackgroundLift\);/);
@@ -270,11 +278,12 @@ test("native shader exposes the same overlay curve as uniforms", async () => {
     /float overlayOpacity = uRainOverlayOpacityBase \+ normalizedVisibility \* uRainOverlayOpacityScale;/
   );
   assert.match(source, /vec4 color = texture2D\(uBackground, refractUv\);/);
+  assert.match(source, /float lightFade = mix\(1\.0, 1\.0 - brightRegion, uLightFadeStrength\);/);
   assert.doesNotMatch(source, /float waterStrength = clamp\(overlayOpacity, 0\.0, 1\.0\);/);
   assert.doesNotMatch(source, /color\.rgb = mix\(baseColor\.rgb, color\.rgb, waterStrength\);/);
   assert.match(
     source,
-    /gl_FragColor = vec4\(color\.rgb, mask \* overlayOpacity\);/
+    /gl_FragColor = vec4\(color\.rgb, mask \* overlayOpacity \* lightFade\);/
   );
   assert.match(source, /color\.a = texture2D\(uMistTex, vUv\)\.r \* overlayOpacity \* uMistAlpha;/);
   assert.doesNotMatch(source, /normalizeRainVisibility\(visibleRain\)/);

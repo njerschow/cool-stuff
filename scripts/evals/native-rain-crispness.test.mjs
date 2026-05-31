@@ -38,10 +38,14 @@ test("native drop shader mirrors the RaindropFX transparent refractive pass", as
     /vec2 refractUv = vUv - \(compose\.xy - vec2\(0\.5\)\) \* vec2\(compose\.b \* uRefractParams\.y \+ uRefractParams\.x\);/
   );
   assert.match(source, /vec3 lightDir = vec3\(-1\.0, 1\.0, 2\.0\) - 0\.0 \* vec3\(vUv\.xy, 0\.0\);/);
+  assert.match(source, /vec4 baseColor = texture2D\(uBackground, vUv\);/);
   assert.match(source, /vec4 color = texture2D\(uBackground, refractUv\);/);
-  assert.match(source, /color\.rgb \+= vec3\(\(lambert - uDiffuseParams\.x\) \* uDiffuseParams\.y\);/);
-  assert.match(source, /gl_FragColor = vec4\(color\.rgb, mask \* overlayOpacity\);/);
-  assert.doesNotMatch(source, /vec4 baseColor = texture2D\(uBackground, vUv\);/);
+  assert.match(source, /float baseLuma = dot\(baseColor\.rgb, vec3\(0\.2126, 0\.7152, 0\.0722\)\);/);
+  assert.match(source, /float lightFade = mix\(1\.0, 1\.0 - brightRegion, uLightFadeStrength\);/);
+  assert.match(source, /color\.rgb \+= vec3\(\(lambert - uDiffuseParams\.x\) \* uDiffuseParams\.y \* lightFade\);/);
+  assert.match(source, /color\.rgb \+= vec3\(edgeContrast\);/);
+  assert.match(source, /color\.rgb \+= vec3\(specular \* uSpecularStrength \* lightFade\);/);
+  assert.match(source, /gl_FragColor = vec4\(color\.rgb, mask \* overlayOpacity \* lightFade\);/);
   assert.doesNotMatch(source, /float waterStrength = clamp\(overlayOpacity, 0\.0, 1\.0\);/);
   assert.doesNotMatch(source, /color\.rgb = mix\(baseColor\.rgb, color\.rgb, waterStrength\);/);
   assert.doesNotMatch(source, /colorspace_fragment/);
@@ -96,6 +100,9 @@ test("native tuning changes update in place instead of resetting drops", async (
   assert.match(source, /rainTuningRef\.current = rainTuning;/);
   assert.match(source, /paneSimulation\.updateOptions\(paneSimulationOptionsFromTuning\(currentTuning\)\);/);
   assert.match(source, /glassMaterial\.uniforms\.uRainOverlayOpacityBase\.value =\n        currentTuning\.rainOverlayBase;/);
+  assert.match(source, /glassMaterial\.uniforms\.uLightFadeStrength\.value =\n        currentTuning\.lightFadeStrength;/);
+  assert.match(source, /glassMaterial\.uniforms\.uWaterEdgeContrast\.value =\n        currentTuning\.waterEdgeContrast;/);
+  assert.match(source, /glassMaterial\.uniforms\.uSpecularStrength\.value =\n        currentTuning\.specularStrength;/);
   assert.match(source, /mistComposeMaterial\.uniforms\.uRainOverlayOpacityBase\.value =\n        currentTuning\.rainOverlayBase;/);
   assert.match(source, /\}, \[backgroundMode, nativeGlass, quality, timeOfDay\]\);/);
   assert.doesNotMatch(source, /\}, \[backgroundMode, nativeGlass, quality, rainTuning, timeOfDay\]\);/);

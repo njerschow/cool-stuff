@@ -12,6 +12,8 @@ export type RainTuning = {
   gravity: number;
   initialFillRatio: number;
   initialSpread: number;
+  lightFadeStrength: number;
+  lightFadeThreshold: number;
   maxDropInstances: number;
   maxMicrodropInstances: number;
   microdropRate: number;
@@ -39,12 +41,14 @@ export type RainTuning = {
   spawnLimit: number;
   spawnSizeMax: number;
   spawnSizeMin: number;
+  specularStrength: number;
   trailDistanceMax: number;
   trailDistanceMin: number;
   trailDropDensity: number;
   trailDropSizeMax: number;
   trailDropSizeMin: number;
   trailSpread: number;
+  waterEdgeContrast: number;
   velocitySpread: number;
   xShiftMax: number;
   xShiftMin: number;
@@ -64,6 +68,8 @@ export const DEFAULT_RAIN_TUNING: RainTuning = {
   gravity: 2400,
   initialFillRatio: 0,
   initialSpread: 0.5,
+  lightFadeStrength: 0,
+  lightFadeThreshold: 0.68,
   maxDropInstances: 3000,
   maxMicrodropInstances: 80,
   microdropRate: 500,
@@ -91,12 +97,14 @@ export const DEFAULT_RAIN_TUNING: RainTuning = {
   spawnLimit: 2000,
   spawnSizeMax: 100,
   spawnSizeMin: 60,
+  specularStrength: 0,
   trailDistanceMax: 30,
   trailDistanceMin: 20,
   trailDropDensity: 0.2,
   trailDropSizeMax: 0.5,
   trailDropSizeMin: 0.3,
   trailSpread: 0.6,
+  waterEdgeContrast: 0,
   velocitySpread: 0.3,
   xShiftMax: 0.1,
   xShiftMin: 0,
@@ -269,6 +277,42 @@ export const RAIN_TUNING_CONTROLS: RainTuningControl[] = [
     max: 0.8,
     min: 0,
     step: 0.01,
+  },
+  {
+    description: "Background luminance where water starts fading. Lower values make drops disappear sooner on bright regions.",
+    group: "shader",
+    key: "lightFadeThreshold",
+    label: "light fade threshold",
+    max: 1,
+    min: 0,
+    step: 0.01,
+  },
+  {
+    description: "How much bright background reduces water alpha and diffuse lighting. This preserves stronger drops in dark/contrasty areas while backing off over light sky or glare.",
+    group: "shader",
+    key: "lightFadeStrength",
+    label: "light fade strength",
+    max: 1,
+    min: 0,
+    step: 0.01,
+  },
+  {
+    description: "Extra contrast from the packed raindrop normal field. Positive values make lens edges and curved surfaces clearer without lifting the whole background.",
+    group: "shader",
+    key: "waterEdgeContrast",
+    label: "edge contrast",
+    max: 0.7,
+    min: -0.2,
+    step: 0.01,
+  },
+  {
+    description: "Strength of the Blinn-Phong water highlight path. RaindropFX supports this; keep low to avoid fake white specks.",
+    group: "shader",
+    key: "specularStrength",
+    label: "specular strength",
+    max: 0.5,
+    min: 0,
+    step: 0.005,
   },
   {
     description: "Small brightness lift added to the blurred mist background.",
