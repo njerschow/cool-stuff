@@ -23,7 +23,7 @@ type PaneDrop = {
   y: number;
 };
 
-type PaneSimulationOptions = {
+export type PaneSimulationOptions = {
   colliderSize: number;
   evaporate: number;
   gravity: number;
@@ -137,6 +137,10 @@ export class RaindropPaneSimulation {
 
   constructor(options: Partial<PaneSimulationOptions> = {}) {
     this.options = { ...defaultOptions, ...options };
+  }
+
+  updateOptions(options: Partial<PaneSimulationOptions>) {
+    Object.assign(this.options, options);
   }
 
   get renderDrops(): RenderDrop[] {

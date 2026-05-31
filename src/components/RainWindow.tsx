@@ -7,7 +7,10 @@ import {
   RAIN_VISIBILITY_SLIDER,
 } from "../rainVisibility";
 import type { RainTuning } from "../rainTuning";
-import { RaindropPaneSimulation } from "../simulation/RaindropPaneSimulation";
+import {
+  RaindropPaneSimulation,
+  type PaneSimulationOptions,
+} from "../simulation/RaindropPaneSimulation";
 
 export type BackgroundMode = "demo" | "street";
 export type RenderQuality = "balanced" | "cinematic";
@@ -202,6 +205,40 @@ const tuningRange = (a: number, b: number): [number, number] =>
   a <= b ? [a, b] : [b, a];
 
 const tuningInt = (value: number, min = 0) => Math.max(min, Math.round(value));
+
+const paneSimulationOptionsFromTuning = (
+  rainTuning: RainTuning
+): Partial<PaneSimulationOptions> => ({
+  colliderSize: rainTuning.colliderSize,
+  evaporate: rainTuning.evaporate,
+  gravity: rainTuning.gravity,
+  initialFillRatio: rainTuning.initialFillRatio,
+  initialSpread: rainTuning.initialSpread,
+  motionInterval: tuningRange(
+    rainTuning.motionIntervalMin,
+    rainTuning.motionIntervalMax
+  ),
+  shrinkRate: rainTuning.shrinkRate,
+  slipRate: rainTuning.slipRate,
+  spawnInterval: tuningRange(
+    rainTuning.spawnIntervalMin,
+    rainTuning.spawnIntervalMax
+  ),
+  spawnLimit: tuningInt(rainTuning.spawnLimit, 1),
+  spawnSize: tuningRange(rainTuning.spawnSizeMin, rainTuning.spawnSizeMax),
+  trailDistance: tuningRange(
+    rainTuning.trailDistanceMin,
+    rainTuning.trailDistanceMax
+  ),
+  trailDropDensity: rainTuning.trailDropDensity,
+  trailDropSize: tuningRange(
+    rainTuning.trailDropSizeMin,
+    rainTuning.trailDropSizeMax
+  ),
+  trailSpread: rainTuning.trailSpread,
+  velocitySpread: rainTuning.velocitySpread,
+  xShifting: tuningRange(rainTuning.xShiftMin, rainTuning.xShiftMax),
+});
 
 const glassFragmentShader = `
 uniform sampler2D uBackground;
@@ -437,6 +474,7 @@ export function RainWindow({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const pausedRef = useRef(paused);
   const rainVisibilityRef = useRef(rainVisibility);
+  const rainTuningRef = useRef(rainTuning);
   const benchmarkIdRef = useRef(benchmarkId);
   const benchmarkRef = useRef(onBenchmark);
 
@@ -447,6 +485,10 @@ export function RainWindow({
   useEffect(() => {
     rainVisibilityRef.current = rainVisibility;
   }, [rainVisibility]);
+
+  useEffect(() => {
+    rainTuningRef.current = rainTuning;
+  }, [rainTuning]);
 
   useEffect(() => {
     benchmarkIdRef.current = benchmarkId;
@@ -732,37 +774,9 @@ export function RainWindow({
     const mistQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mistAddMaterial);
     mistScene.add(mistQuad);
 
-    const paneSimulation = new RaindropPaneSimulation({
-      colliderSize: rainTuning.colliderSize,
-      evaporate: rainTuning.evaporate,
-      gravity: rainTuning.gravity,
-      initialFillRatio: rainTuning.initialFillRatio,
-      initialSpread: rainTuning.initialSpread,
-      motionInterval: tuningRange(
-        rainTuning.motionIntervalMin,
-        rainTuning.motionIntervalMax
-      ),
-      shrinkRate: rainTuning.shrinkRate,
-      slipRate: rainTuning.slipRate,
-      spawnInterval: tuningRange(
-        rainTuning.spawnIntervalMin,
-        rainTuning.spawnIntervalMax
-      ),
-      spawnLimit: tuningInt(rainTuning.spawnLimit, 1),
-      spawnSize: tuningRange(rainTuning.spawnSizeMin, rainTuning.spawnSizeMax),
-      trailDistance: tuningRange(
-        rainTuning.trailDistanceMin,
-        rainTuning.trailDistanceMax
-      ),
-      trailDropDensity: rainTuning.trailDropDensity,
-      trailDropSize: tuningRange(
-        rainTuning.trailDropSizeMin,
-        rainTuning.trailDropSizeMax
-      ),
-      trailSpread: rainTuning.trailSpread,
-      velocitySpread: rainTuning.velocitySpread,
-      xShifting: tuningRange(rainTuning.xShiftMin, rainTuning.xShiftMax),
-    });
+    const paneSimulation = new RaindropPaneSimulation(
+      paneSimulationOptionsFromTuning(rainTuningRef.current)
+    );
     const dropScene = new THREE.Scene();
     const dropCamera = new THREE.OrthographicCamera(0, 1, 0, 1, -1, 1);
     dropCamera.position.z = 1;
@@ -885,7 +899,8 @@ export function RainWindow({
 
       const targetWidth = Math.max(1, Math.floor(safeWidth * pixelRatio));
       const targetHeight = Math.max(1, Math.floor(safeHeight * pixelRatio));
-      const rainScale = settings.raindropMapScale * rainTuning.rainMapScale;
+      const currentTuning = rainTuningRef.current;
+      const rainScale = settings.raindropMapScale * currentTuning.rainMapScale;
       const rainWidth = Math.max(1, Math.floor(targetWidth * rainScale));
       const rainHeight = Math.max(1, Math.floor(targetHeight * rainScale));
       targetMegapixels = (targetWidth * targetHeight) / 1_000_000;
@@ -939,6 +954,7 @@ export function RainWindow({
     };
 
     const updateMicrodropMesh = (rainDelta: number) => {
+      const currentTuning = rainTuningRef.current;
       if (rainDelta <= 0) {
         microdropMesh.count = 0;
         return 0;
@@ -946,7 +962,7 @@ export function RainWindow({
 
       const count = Math.min(
         maxMicrodropInstances,
-        Math.floor(rainTuning.microdropRate * rainDelta)
+        Math.floor(currentTuning.microdropRate * rainDelta)
       );
       microdropMesh.count = count;
       microdropMaterial.uniforms.uSpawnRect.value.set(
@@ -956,15 +972,15 @@ export function RainWindow({
         rainMapHeight
       );
       const [microdropSizeMin, microdropSizeMax] = tuningRange(
-        rainTuning.microdropSizeMin,
-        rainTuning.microdropSizeMax
+        currentTuning.microdropSizeMin,
+        currentTuning.microdropSizeMax
       );
       microdropMaterial.uniforms.uSizeRange.value.set(
         microdropSizeMin,
         microdropSizeMax
       );
       microdropMaterial.uniforms.uSeed.value =
-        Math.random() * rainTuning.microdropSeedMax;
+        Math.random() * currentTuning.microdropSeedMax;
 
       return count;
     };
@@ -1075,12 +1091,14 @@ export function RainWindow({
       renderer.info.reset();
       const rawDelta = Math.min(clock.getDelta(), 0.04);
       const paused = pausedRef.current;
+      const currentTuning = rainTuningRef.current;
       const delta = paused ? 0 : rawDelta * (reducedMotion ? 0.28 : 1);
-      const rainDelta = nativeGlass && !paused ? rainTuning.rainFrameDelta : 0;
+      const rainDelta = nativeGlass && !paused ? currentTuning.rainFrameDelta : 0;
       const visibleRain = rainVisibilityRef.current;
       sceneTime += delta;
       rainTotalTime += paused ? 0 : rawDelta;
 
+      paneSimulation.updateOptions(paneSimulationOptionsFromTuning(currentTuning));
       if (rainDelta > 0) {
         paneSimulation.update(rainDelta, rainTotalTime);
       }
@@ -1112,12 +1130,12 @@ export function RainWindow({
       copyToGlassTarget();
       renderBlur(
         frostTargetB,
-        tuningInt(rainTuning.backgroundBlurSteps),
+        tuningInt(currentTuning.backgroundBlurSteps),
         frostTargetA
       );
       renderBlur(
         frostTargetB,
-        tuningInt(rainTuning.mistBlurSteps),
+        tuningInt(currentTuning.mistBlurSteps),
         mistBackgroundTargetA
       );
 
@@ -1133,7 +1151,7 @@ export function RainWindow({
       }
       if (rainDelta > 0) {
         mistAddMaterial.uniforms.uAmount.value =
-          rainDelta / Math.max(0.001, rainTuning.mistAddDivisor);
+          rainDelta / Math.max(0.001, currentTuning.mistAddDivisor);
         renderer.setRenderTarget(mistTarget);
         mistQuad.material = mistAddMaterial;
         renderer.render(mistScene, screenCamera);
@@ -1144,11 +1162,11 @@ export function RainWindow({
         mistQuad.material = mistEraseMaterial;
         mistEraseMaterial.uniforms.uRainMap.value = raindropTarget.texture;
         mistEraseMaterial.uniforms.uEraserSmooth.value.set(
-          rainTuning.eraserStart,
-          rainTuning.eraserEnd
+          currentTuning.eraserStart,
+          currentTuning.eraserEnd
         );
         mistEraseMaterial.uniforms.uEraseStrength.value =
-          rainTuning.eraserStrength;
+          currentTuning.eraserStrength;
         renderer.setRenderTarget(mistTarget);
         renderer.render(mistScene, screenCamera);
         renderer.setRenderTarget(dropletTarget);
@@ -1157,15 +1175,38 @@ export function RainWindow({
       renderer.autoClear = previousAutoClear;
 
       glassMaterial.uniforms.uRainVisibility.value = visibleRain;
+      glassMaterial.uniforms.uRainOverlayOpacityBase.value =
+        currentTuning.rainOverlayBase;
+      glassMaterial.uniforms.uRainOverlayOpacityScale.value =
+        currentTuning.rainOverlayScale;
+      glassMaterial.uniforms.uDiffuseParams.value.set(
+        currentTuning.diffuseMidpoint,
+        currentTuning.diffuseStrength
+      );
+      glassMaterial.uniforms.uRainMaskSmooth.value.set(
+        currentTuning.rainMaskStart,
+        currentTuning.rainMaskEnd
+      );
+      glassMaterial.uniforms.uRefractParams.value.set(
+        currentTuning.refractBase,
+        currentTuning.refractScale
+      );
       mistComposeMaterial.uniforms.uRainVisibility.value = visibleRain;
+      mistComposeMaterial.uniforms.uRainOverlayOpacityBase.value =
+        currentTuning.rainOverlayBase;
+      mistComposeMaterial.uniforms.uRainOverlayOpacityScale.value =
+        currentTuning.rainOverlayScale;
+      mistComposeMaterial.uniforms.uMistAlpha.value = currentTuning.mistAlpha;
+      mistComposeMaterial.uniforms.uMistBrightness.value =
+        currentTuning.mistBrightness;
       renderer.setRenderTarget(null);
       renderer.setClearColor(0x000000, 1);
       renderer.clear(true, true, true);
       const previousCanvasAutoClear = renderer.autoClear;
       renderer.autoClear = false;
       copyMaterial.uniforms.uImage.value = frostTargetA.texture;
-      copyMaterial.uniforms.uBackgroundGain.value = rainTuning.backgroundGain;
-      copyMaterial.uniforms.uBackgroundLift.value = rainTuning.backgroundLift;
+      copyMaterial.uniforms.uBackgroundGain.value = currentTuning.backgroundGain;
+      copyMaterial.uniforms.uBackgroundLift.value = currentTuning.backgroundLift;
       renderPostMaterial(copyMaterial, null);
       renderPostMaterial(mistComposeMaterial, null);
       renderer.render(screenScene, screenCamera);
@@ -1210,7 +1251,7 @@ export function RainWindow({
         }
       });
     };
-  }, [backgroundMode, nativeGlass, quality, rainTuning, timeOfDay]);
+  }, [backgroundMode, nativeGlass, quality, timeOfDay]);
 
   return (
     <div

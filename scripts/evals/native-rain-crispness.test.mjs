@@ -67,12 +67,12 @@ test("native compositor draws RaindropFX layers instead of one opaque pane", asy
   assert.match(tuning, /key: "backgroundGain"/);
   assert.match(tuning, /key: "backgroundLift"/);
   assert.match(source, /const mistComposeMaterial = new THREE\.ShaderMaterial\(\{/);
-  assert.match(source, /renderBlur\(\n        frostTargetB,\n        tuningInt\(rainTuning\.backgroundBlurSteps\),\n        frostTargetA\n      \);/);
-  assert.match(source, /renderBlur\(\n        frostTargetB,\n        tuningInt\(rainTuning\.mistBlurSteps\),\n        mistBackgroundTargetA\n      \);/);
+  assert.match(source, /renderBlur\(\n        frostTargetB,\n        tuningInt\(currentTuning\.backgroundBlurSteps\),\n        frostTargetA\n      \);/);
+  assert.match(source, /renderBlur\(\n        frostTargetB,\n        tuningInt\(currentTuning\.mistBlurSteps\),\n        mistBackgroundTargetA\n      \);/);
   assert.doesNotMatch(source, /mistBackgroundTargetB/);
   assert.match(
     source,
-    /copyMaterial\.uniforms\.uImage\.value = frostTargetA\.texture;\n      copyMaterial\.uniforms\.uBackgroundGain\.value = rainTuning\.backgroundGain;\n      copyMaterial\.uniforms\.uBackgroundLift\.value = rainTuning\.backgroundLift;\n      renderPostMaterial\(copyMaterial, null\);\n      renderPostMaterial\(mistComposeMaterial, null\);\n      renderer\.render\(screenScene, screenCamera\);/
+    /copyMaterial\.uniforms\.uImage\.value = frostTargetA\.texture;\n      copyMaterial\.uniforms\.uBackgroundGain\.value = currentTuning\.backgroundGain;\n      copyMaterial\.uniforms\.uBackgroundLift\.value = currentTuning\.backgroundLift;\n      renderPostMaterial\(copyMaterial, null\);\n      renderPostMaterial\(mistComposeMaterial, null\);\n      renderer\.render\(screenScene, screenCamera\);/
   );
   assert.match(source, /renderer\.clear\(true, true, true\);\n      const previousCanvasAutoClear = renderer\.autoClear;/);
   assert.doesNotMatch(source, /renderGlare\(\);\n      copyToGlassTarget\(\);/);
@@ -83,6 +83,23 @@ test("raindrop normal texture is not mipmap-softened", async () => {
 
   assert.match(source, /raindropTexture\.generateMipmaps = false;/);
   assert.match(source, /raindropTexture\.minFilter = THREE\.LinearFilter;/);
+});
+
+test("native tuning changes update in place instead of resetting drops", async () => {
+  const source = await rainWindowSource();
+  const simulation = await readFile(
+    path.join(root, "src/simulation/RaindropPaneSimulation.ts"),
+    "utf8"
+  );
+
+  assert.match(source, /const rainTuningRef = useRef\(rainTuning\);/);
+  assert.match(source, /rainTuningRef\.current = rainTuning;/);
+  assert.match(source, /paneSimulation\.updateOptions\(paneSimulationOptionsFromTuning\(currentTuning\)\);/);
+  assert.match(source, /glassMaterial\.uniforms\.uRainOverlayOpacityBase\.value =\n        currentTuning\.rainOverlayBase;/);
+  assert.match(source, /mistComposeMaterial\.uniforms\.uRainOverlayOpacityBase\.value =\n        currentTuning\.rainOverlayBase;/);
+  assert.match(source, /\}, \[backgroundMode, nativeGlass, quality, timeOfDay\]\);/);
+  assert.doesNotMatch(source, /\}, \[backgroundMode, nativeGlass, quality, rainTuning, timeOfDay\]\);/);
+  assert.match(simulation, /updateOptions\(options: Partial<PaneSimulationOptions>\) \{/);
 });
 
 test("native raindrops render slightly larger water lenses", async () => {
@@ -97,7 +114,7 @@ test("native raindrops render slightly larger water lenses", async () => {
   assert.match(source, /vertexShader: proceduralMicrodropletVertexShader,/);
   assert.match(source, /microdropMaterial\.uniforms\.uSpawnRect\.value\.set\(/);
   assert.match(source, /microdropMaterial\.uniforms\.uSizeRange\.value\.set\(\n        microdropSizeMin,\n        microdropSizeMax\n      \);/);
-  assert.match(source, /Math\.random\(\) \* rainTuning\.microdropSeedMax;/);
+  assert.match(source, /Math\.random\(\) \* currentTuning\.microdropSeedMax;/);
   assert.doesNotMatch(source, /const size = 10 \+ Math\.random\(\) \* 20;/);
 });
 
@@ -116,9 +133,9 @@ test("falling streaks use the RaindropFX mist-erasure loop", async () => {
   assert.doesNotMatch(source, /clearChannelHistoryFragmentShader/);
   assert.match(source, /initialFillRatio: rainTuning\.initialFillRatio,/);
   assert.match(source, /initialSpread: rainTuning\.initialSpread,/);
-  assert.match(source, /trailDistance: tuningRange\(\n        rainTuning\.trailDistanceMin,\n        rainTuning\.trailDistanceMax\n      \),/);
+  assert.match(source, /trailDistance: tuningRange\(\n    rainTuning\.trailDistanceMin,\n    rainTuning\.trailDistanceMax\n  \),/);
   assert.match(source, /trailDropDensity: rainTuning\.trailDropDensity,/);
-  assert.match(source, /trailDropSize: tuningRange\(\n        rainTuning\.trailDropSizeMin,\n        rainTuning\.trailDropSizeMax\n      \),/);
+  assert.match(source, /trailDropSize: tuningRange\(\n    rainTuning\.trailDropSizeMin,\n    rainTuning\.trailDropSizeMax\n  \),/);
   assert.match(source, /trailSpread: rainTuning\.trailSpread,/);
   assert.match(source, /velocitySpread: rainTuning\.velocitySpread,/);
   assert.match(source, /dropScale\.set\(drop\.sizeX, drop\.sizeY, 1\);/);
@@ -127,7 +144,7 @@ test("falling streaks use the RaindropFX mist-erasure loop", async () => {
   assert.doesNotMatch(source, /const updateTrailEraseMesh = /);
   assert.doesNotMatch(source, /renderer\.render\(trailEraseScene, dropCamera\);/);
   assert.match(source, /renderer\.setRenderTarget\(raindropTarget\);\n      renderer\.setClearColor\(0x000000, 0\);\n      renderer\.clear\(true, true, true\);[\s\S]+renderer\.render\(dropScene, dropCamera\);/);
-  assert.match(source, /const rainDelta = nativeGlass && !paused \? rainTuning\.rainFrameDelta : 0;/);
+  assert.match(source, /const rainDelta = nativeGlass && !paused \? currentTuning\.rainFrameDelta : 0;/);
   assert.match(source, /paneSimulation\.update\(rainDelta, rainTotalTime\);/);
   assert.match(source, /const mistTarget = new THREE\.WebGLRenderTarget\(1, 1, \{\n      depthBuffer: false,\n      stencilBuffer: false,\n      type: THREE\.HalfFloatType,/);
   assert.match(source, /uEraserSmooth: \{ value: new THREE\.Vector2\(0\.93, 1\) \},/);
@@ -136,11 +153,11 @@ test("falling streaks use the RaindropFX mist-erasure loop", async () => {
   assert.match(source, /gl_FragColor = vec4\(0\.0, 0\.0, 0\.0, mask \* uEraseStrength\);/);
   assert.match(source, /renderer\.setClearColor\(0x000000, 0\);/);
   assert.doesNotMatch(source, /nativeRainResponse/);
-  assert.match(source, /rainDelta \/ Math\.max\(0\.001, rainTuning\.mistAddDivisor\);/);
+  assert.match(source, /rainDelta \/ Math\.max\(0\.001, currentTuning\.mistAddDivisor\);/);
   assert.doesNotMatch(source, /mistEraseMaterial\.uniforms\.uEraseStrength\.value = 0;/);
   assert.match(source, /mistEraseMaterial\.uniforms\.uRainMap\.value = raindropTarget\.texture;/);
-  assert.match(source, /mistEraseMaterial\.uniforms\.uEraserSmooth\.value\.set\(\n          rainTuning\.eraserStart,\n          rainTuning\.eraserEnd\n        \);/);
-  assert.match(source, /mistEraseMaterial\.uniforms\.uEraseStrength\.value =\n          rainTuning\.eraserStrength;/);
+  assert.match(source, /mistEraseMaterial\.uniforms\.uEraserSmooth\.value\.set\(\n          currentTuning\.eraserStart,\n          currentTuning\.eraserEnd\n        \);/);
+  assert.match(source, /mistEraseMaterial\.uniforms\.uEraseStrength\.value =\n          currentTuning\.eraserStrength;/);
   assert.doesNotMatch(source, /texture2D\(uTrailEraseMap/);
   assert.doesNotMatch(source, /clearChannelColor/);
   assert.match(simulation, /export type RenderTrail = \{/);
