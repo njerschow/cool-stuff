@@ -60,6 +60,7 @@ const initialCompareMode =
 const initialTuneMode =
   window.location.pathname === "/tune/rain" ||
   new URLSearchParams(window.location.search).get("tune") === "rain";
+const initialOriginalRainMode = window.location.pathname === "/rain/original";
 
 const focusedFxOptionsByGroup: Record<RainTuningGroup, Record<string, unknown>> = {
   droplets: {
@@ -115,9 +116,13 @@ export default function App() {
   const [activeTuningGroup, setActiveTuningGroup] =
     useState<RainTuningGroup>(readStoredRainTuningGroup);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>("morning");
+  const showOriginalRain = initialOriginalRainMode;
   const showTuneMode = initialTuneMode && backgroundMode === "street";
   const showComparison =
-    !showTuneMode && initialCompareMode && backgroundMode === "street";
+    !showOriginalRain &&
+    !showTuneMode &&
+    initialCompareMode &&
+    backgroundMode === "street";
   const handleRainTuningChange = useCallback(
     (key: keyof RainTuning, value: number) => {
       setRainTuning((current) => ({ ...current, [key]: value }));
@@ -151,9 +156,19 @@ export default function App() {
     <main
       className="portfolio"
       data-background-mode={backgroundMode}
-      data-view={showTuneMode ? "tune" : showComparison ? "compare" : "single"}
+      data-view={
+        showOriginalRain
+          ? "original"
+          : showTuneMode
+            ? "tune"
+            : showComparison
+              ? "compare"
+              : "single"
+      }
     >
-      {backgroundMode === "demo" ? (
+      {showOriginalRain ? (
+        <OriginalRaindropDemo />
+      ) : backgroundMode === "demo" ? (
         <OriginalRaindropDemo />
       ) : showTuneMode ? (
         <RainTuningWorkbench

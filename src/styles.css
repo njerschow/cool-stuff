@@ -407,6 +407,17 @@ a {
   display: none;
 }
 
+.portfolio[data-view="original"] {
+  background: #fff;
+}
+
+.portfolio[data-view="original"] .site-header,
+.portfolio[data-view="original"] .project-title,
+.portfolio[data-view="original"] .scene-toolbar,
+.portfolio[data-view="original"] .tuning-panel {
+  display: none;
+}
+
 .portfolio[data-view="compare"] .site-header,
 .portfolio[data-view="compare"] .project-title {
   display: none;
@@ -839,7 +850,8 @@ a {
     grid-template-columns: minmax(96px, 0.9fr) minmax(92px, 1fr) 44px;
   }
 
-  .portfolio[data-background-mode="demo"] .raindrop-fx-demo {
+  .portfolio[data-background-mode="demo"] .raindrop-fx-demo,
+  .portfolio[data-view="original"] .raindrop-fx-demo {
     top: 20px;
     width: calc(100vw - 64px);
   }

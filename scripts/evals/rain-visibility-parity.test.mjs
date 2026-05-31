@@ -171,7 +171,8 @@ test("focused rain tuning workbench isolates categories and persists the active 
   assert.match(appSource, /function readStoredTuningPanelPosition\(\): TuningPanelPosition \| null/);
   assert.match(appSource, /function writeStoredTuningPanelPosition\(value: TuningPanelPosition \| null\)/);
   assert.match(appSource, /function RainTuningWorkbench/);
-  assert.match(appSource, /data-view=\{showTuneMode \? "tune" : showComparison \? "compare" : "single"\}/);
+  assert.match(appSource, /showTuneMode\s+\?\s+"tune"/);
+  assert.match(appSource, /showComparison\s+\?\s+"compare"/);
   assert.match(appSource, /<RainTuningWorkbench/);
   assert.match(appSource, /onPointerDown=\{handlePanelDragStart\}/);
   assert.match(appSource, /onPointerMove=\{handlePanelDragMove\}/);
@@ -195,6 +196,30 @@ test("focused rain tuning workbench isolates categories and persists the active 
   assert.match(overlaySource, /options\?: Record<string, unknown>;/);
   assert.match(overlaySource, /options=\{options\}/);
   assert.match(vercelSource, /"source": "\/tune\/:path\*"/);
+  assert.match(vercelSource, /"destination": "\/index.html"/);
+});
+
+test("original RaindropFX route preserves the untouched reference render", async () => {
+  const appSource = await readFile(path.join(root, "src/App.tsx"), "utf8");
+  const styleSource = await readFile(path.join(root, "src/styles.css"), "utf8");
+  const demoSource = await readFile(
+    path.join(root, "src/components/OriginalRaindropDemo.tsx"),
+    "utf8"
+  );
+  const vercelSource = await readFile(path.join(root, "vercel.json"), "utf8");
+
+  assert.match(appSource, /window\.location\.pathname === "\/rain\/original"/);
+  assert.match(appSource, /const showOriginalRain = initialOriginalRainMode;/);
+  assert.match(appSource, /showOriginalRain\s+\?\s+"original"/);
+  assert.match(
+    appSource,
+    /showOriginalRain \? \(\n        <OriginalRaindropDemo \/>/
+  );
+  assert.match(demoSource, /background="\/vendor\/raindrop-fx\/84765992_p0\.jpg"/);
+  assert.match(styleSource, /\.portfolio\[data-view="original"\]/);
+  assert.match(styleSource, /\.portfolio\[data-view="original"\] \.site-header/);
+  assert.match(styleSource, /\.portfolio\[data-view="original"\] \.scene-toolbar/);
+  assert.match(vercelSource, /"source": "\/rain\/:path\*"/);
   assert.match(vercelSource, /"destination": "\/index.html"/);
 });
 
