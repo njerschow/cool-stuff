@@ -500,7 +500,6 @@ function RainTuningWorkbench({
   const activeControls = RAIN_TUNING_CONTROLS.filter(
     (control) => control.group === activeGroup
   );
-  const focusedNativeTuning = getFocusedNativeTuning(rainTuning, activeGroup);
   const panelRef = useRef<HTMLElement | null>(null);
   const dragRef = useRef<TuningPanelPosition | null>(null);
   const [isDraggingPanel, setIsDraggingPanel] = useState(false);
@@ -632,7 +631,7 @@ function RainTuningWorkbench({
             nativeGlass
             paused={paused}
             quality={quality}
-            rainTuning={focusedNativeTuning}
+            rainTuning={rainTuning}
             rainVisibility={rainVisibility}
             timeOfDay={timeOfDay}
           />
@@ -754,38 +753,6 @@ function RainTuningControls({
       ))}
     </>
   );
-}
-
-function getFocusedNativeTuning(
-  rainTuning: RainTuning,
-  activeGroup: RainTuningGroup
-) {
-  const focused = { ...DEFAULT_RAIN_TUNING };
-  for (const control of RAIN_TUNING_CONTROLS) {
-    if (control.group === activeGroup) {
-      focused[control.key] = rainTuning[control.key];
-    }
-  }
-
-  if (activeGroup === "droplets") {
-    focused.mistAlpha = 0;
-  }
-
-  if (activeGroup === "mist") {
-    focused.microdropRate = 0;
-  }
-
-  if (activeGroup === "shader") {
-    focused.mistAlpha = 0;
-    focused.microdropRate = 0;
-  }
-
-  if (activeGroup === "simulation") {
-    focused.mistAlpha = 0;
-    focused.microdropRate = 0;
-  }
-
-  return focused;
 }
 
 function RainComparison({

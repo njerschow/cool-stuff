@@ -177,13 +177,13 @@ test("focused rain tuning workbench isolates categories and persists the active 
   assert.match(appSource, /data-moved=\{panelPosition \? "true" : undefined\}/);
   assert.match(appSource, /RAIN_TUNING_GROUP_QUESTIONS\[activeGroup\]/);
   assert.match(appSource, /data-tuning-variant="native"/);
-  assert.match(appSource, /rainTuning=\{focusedNativeTuning\}/);
+  assert.match(appSource, /rainTuning=\{rainTuning\}/);
   assert.doesNotMatch(appSource, /data-tuning-variant="reference"/);
   assert.doesNotMatch(appSource, /focusedFxOptionsByGroup/);
   assert.doesNotMatch(appSource, /tuning-reference-/);
-  assert.match(appSource, /function getFocusedNativeTuning/);
-  assert.match(appSource, /focused\.mistAlpha = 0;/);
-  assert.match(appSource, /focused\.microdropRate = 0;/);
+  assert.doesNotMatch(appSource, /function getFocusedNativeTuning/);
+  assert.doesNotMatch(appSource, /focused\.mistAlpha = 0;/);
+  assert.doesNotMatch(appSource, /focused\.microdropRate = 0;/);
   assert.doesNotMatch(appSource, /focused\.rainOverlayBase = 0;/);
   assert.doesNotMatch(appSource, /focused\.rainOverlayScale = 0;/);
   assert.match(appSource, /Reset Question/);
