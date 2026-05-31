@@ -246,6 +246,9 @@ test("comparison route stays focused on the visual side-by-side", async () => {
 
   assert.match(appSource, /!\s*showTuneMode && !showComparison \? \(/);
   assert.match(appSource, /function RainComparison/);
+  assert.match(appSource, /showComparison \? \(\n          <a/);
+  assert.match(appSource, /href="\/tune\/rain"/);
+  assert.match(appSource, /<span>Tune<\/span>/);
   assert.doesNotMatch(appSource, /<BenchmarkPanel/);
   assert.doesNotMatch(appSource, /function BenchmarkPanel/);
   assert.doesNotMatch(appSource, /benchmarkId=/);

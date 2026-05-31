@@ -306,6 +306,17 @@ export default function App() {
         >
           <Gauge size={18} />
         </button>
+        {showComparison ? (
+          <a
+            aria-label="Open rain tuning"
+            className="icon-button time-button"
+            href="/tune/rain"
+            title="Open rain tuning"
+          >
+            <SlidersHorizontal size={18} />
+            <span>Tune</span>
+          </a>
+        ) : null}
         <label className="rain-slider" title="Rain visibility">
           <CloudRain size={18} aria-hidden="true" />
           <input
